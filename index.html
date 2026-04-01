@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upstream Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --border: #E2DDD6;
+    --border-light: #EDE9E3;
+    --text-primary: #1A1916;
+    --text-secondary: #6B6760;
+    --text-muted: #A39F99;
+    --accent: #2C4A7C;
+    --accent-light: #E8EDF5;
+    --tag-fp: #7C4A2C;
+    --tag-fp-bg: #F5EDE8;
+    --tag-mkt: #2C6B3A;
+    --tag-mkt-bg: #E8F5EC;
+    --tag-en: #6B5A2C;
+    --tag-en-bg: #F5F0E8;
+    --tag-dom: #2C4A6B;
+    --tag-dom-bg: #E8EDF5;
+    --tag-other: #555250;
+    --tag-other-bg: #EDEAE6;
+    --tag-mil: #5C2C2C;
+    --tag-mil-bg: #F5E8E8;
+    --tag-oil: #2C4A2C;
+    --tag-oil-bg: #E8F0E8;
+    --zh: #C0392B;
+    --rt: #2563A8;
+    --gw: #1A7A52;
+    --gg: #A0621A;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Masthead ── */
+  .masthead {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px 16px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .masthead-left { display: flex; flex-direction: column; gap: 4px; }
+  .masthead-title {
+    font-family: 'Spectral', serif;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .masthead-tag {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--accent);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 4px;
+    vertical-align: middle;
+  }
+  /* ── Auto-refresh toggle ── */
+  .auto-refresh-wrap { display: flex; align-items: center; gap: 6px; }
+  .ar-label { font-size: 11px; color: var(--text-muted); }
+  .ar-interval { font-size: 11px; color: var(--text-muted); min-width: 24px; }
+  .ar-toggle {
+    position: relative; width: 32px; height: 18px;
+    background: var(--border); border: none; border-radius: 99px;
+    cursor: pointer; padding: 0; transition: background 0.2s; flex-shrink: 0;
+  }
+  .ar-toggle.on { background: var(--accent); }
+  .ar-knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+    display: block;
+  }
+  .ar-toggle.on .ar-knob { transform: translateX(14px); }
+  .masthead-date {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .masthead-right { display: flex; align-items: center; gap: 10px; }
+  .refresh-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .refresh-btn:hover { background: var(--bg); border-color: var(--text-muted); }
+  .refresh-btn.spinning { opacity: 0.5; pointer-events: none; }
+
+  /* ── Filter bar ── */
+  .filter-bar {
+    padding: 12px 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+  .filter-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-right: 4px; }
+  .pill {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+  .pill:hover { border-color: var(--text-muted); color: var(--text-primary); }
+  .pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pill.dimmed { opacity: 0.4; pointer-events: none; }
+  .article-count { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+  /* ── Search input ── */
+  .search-wrap { position: relative; display: flex; align-items: center; margin-left: 8px; }
+  .search-icon { position: absolute; left: 9px; width: 13px; height: 13px; pointer-events: none; color: var(--text-muted); }
+  .search-input {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-primary);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 4px 12px 4px 28px;
+    width: 160px;
+    outline: none;
+    transition: border-color 0.15s, width 0.2s;
+  }
+  .search-input::placeholder { color: var(--text-muted); }
+  .search-input:focus { border-color: var(--accent); width: 210px; }
+  .search-clear {
+    position: absolute; right: 8px; background: none; border: none;
+    cursor: pointer; font-size: 14px; color: var(--text-muted); line-height: 1;
+    display: none; padding: 0;
+  }
+  .search-clear.visible { display: block; }
+  .search-active .search-input { border-color: var(--accent); background: var(--accent-light); }
+  mark { background: #FFF176; color: inherit; border-radius: 2px; padding: 0 1px; }
+
+  /* ── Main grid ── */
+  .main { padding: 24px 32px 48px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .grid.comfortable {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  /* ── Layout toggle ── */
+  .layout-toggle {
+    display: flex; align-items: center;
+    border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+  }
+  .lt-btn {
+    background: none; border: none; cursor: pointer;
+    padding: 5px 9px; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .lt-btn:first-child { border-right: 1px solid var(--border); }
+  .lt-btn:hover { background: var(--bg); color: var(--text-secondary); }
+  .lt-btn.active { background: var(--accent-light); color: var(--accent); }
+
+  /* ── Drag and drop ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.15s, opacity 0.15s, transform 0.15s;
+    cursor: default;
+  }
+  .card.dragging { opacity: 0.4; transform: scale(0.98); }
+  .card.drag-over { box-shadow: 0 0 0 2px var(--accent); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: grab;
+    user-select: none;
+  }
+  .card-header:active { cursor: grabbing; }
+  .drag-handle {
+    display: flex; flex-direction: column; gap: 2px;
+    margin-right: 2px; opacity: 0.3; flex-shrink: 0;
+  }
+  .drag-handle span {
+    display: block; width: 14px; height: 1.5px;
+    background: var(--text-primary); border-radius: 1px;
+  }
+  /* ── Bias badge ── */
+  .bias-badge {
+    font-size: 9px; font-weight: 500;
+    padding: 2px 7px; border-radius: 99px;
+    letter-spacing: 0.03em;
+    cursor: pointer; white-space: nowrap;
+    border: 1px solid transparent;
+    transition: opacity 0.15s;
+    margin-left: auto;
+  }
+  .bias-badge:hover { opacity: 0.75; }
+  .bias-edit-wrap { position: relative; margin-left: auto; }
+  .bias-input {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; padding: 2px 7px;
+    border: 1px solid var(--border); border-radius: 99px;
+    background: var(--bg); color: var(--text-primary);
+    outline: none; width: 130px;
+  }
+  .bias-input:focus { border-color: var(--accent); }
+  /* ── Share button ── */
+  .share-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; color: var(--text-secondary);
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .share-btn:hover { background: var(--bg); border-color: var(--text-muted); }
+  .share-btn.copied { color: var(--tag-mkt); border-color: var(--tag-mkt); }
+  .source-bar { width: 3px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .card-count { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+  .visit-link { font-size: 11px; color: var(--accent); text-decoration: none; margin-left: 6px; }
+  .visit-link:hover { text-decoration: underline; }
+
+  /* ── Articles ── */
+  .articles { flex: 1; }
+  .article {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background 0.1s;
+    text-decoration: none;
+    display: block;
+    color: inherit;
+  }
+  .article:last-child { border-bottom: none; }
+  .article:hover { background: var(--bg); }
+  .article-title {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .article-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .article-time { font-size: 11px; color: var(--text-muted); }
+  .article-abs  { font-size: 11px; color: var(--text-muted); margin-left: 4px; opacity: 0.7; }
+  .badge {
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 99px;
+    font-weight: 400;
+  }
+  .badge-fp  { background: var(--tag-fp-bg);    color: var(--tag-fp); }
+  .badge-mkt { background: var(--tag-mkt-bg);   color: var(--tag-mkt); }
+  .badge-en  { background: var(--tag-en-bg);    color: var(--tag-en); }
+  .badge-dom { background: var(--tag-dom-bg);   color: var(--tag-dom); }
+  .badge-other { background: var(--tag-other-bg); color: var(--tag-other); }
+  .badge-mil { background: var(--tag-mil-bg);   color: var(--tag-mil); }
+  .badge-oil { background: var(--tag-oil-bg);   color: var(--tag-oil); }
+
+  /* ── States ── */
+  .state-msg {
+    padding: 28px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.6;
+  }
+  .state-msg a { color: var(--accent); }
+  .state-msg.error { color: #C0392B; }
+
+  /* ── Scrollable card body ── */
+  .articles-wrap { max-height: 276px; overflow-y: auto; }
+  .articles-wrap::-webkit-scrollbar { width: 4px; }
+  .articles-wrap::-webkit-scrollbar-track { background: transparent; }
+  .articles-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 600px) {
+    .masthead, .filter-bar, .main { padding-left: 16px; padding-right: 16px; }
+    .masthead-title { font-size: 20px; }
+  }
+
+  /* ── Trending section ── */
+  .trending-section {
+    padding: 20px 32px 4px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .trending-header {
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px;
+  }
+  .trending-title {
+    font-family: 'Spectral', serif;
+    font-size: 15px; font-weight: 500; color: var(--text-primary);
+    text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px;
+  }
+  .trending-sub { font-size: 11px; color: var(--text-muted); }
+  .clusters {
+    display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px;
+    scrollbar-width: thin;
+  }
+  .clusters::-webkit-scrollbar { height: 3px; }
+  .clusters::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .cluster-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+    min-width: 260px; max-width: 300px; flex-shrink: 0;
+    border-top: 3px solid var(--accent);
+  }
+  .cluster-topic {
+    font-size: 13px; font-weight: 500; color: var(--text-primary);
+    margin-bottom: 4px; line-height: 1.3;
+  }
+  .cluster-meta {
+    font-size: 11px; color: var(--text-muted); margin-bottom: 10px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .cluster-source-count {
+    background: var(--accent-light); color: var(--accent);
+    font-size: 10px; font-weight: 500;
+    padding: 1px 7px; border-radius: 99px;
+  }
+  .cluster-headlines { display: flex; flex-direction: column; gap: 6px; }
+  .cluster-headline {
+    display: flex; gap: 7px; align-items: flex-start;
+    text-decoration: none; color: inherit;
+    padding: 5px 7px; border-radius: 6px; margin: 0 -7px;
+    transition: background 0.1s;
+  }
+  .cluster-headline:hover { background: var(--bg); }
+  .cluster-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .cluster-hl-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+  .cluster-hl-source { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+  /* ── Manage sources panel ── */
+  .manage-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; color: var(--text-secondary);
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .manage-btn:hover { background: var(--bg); border-color: var(--text-muted); }
+  .manage-btn.open { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+  .masthead { position: relative; }
+  .sources-panel {
+    display: none;
+    position: absolute; top: calc(100% + 4px); right: 32px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    z-index: 200; min-width: 280px;
+    padding: 12px 0;
+  }
+  .sources-panel.visible { display: block; }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 16px 10px; border-bottom: 1px solid var(--border-light);
+    margin-bottom: 4px;
+  }
+  .panel-title { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .panel-all-btn { font-size: 11px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; }
+  .panel-all-btn:hover { text-decoration: underline; }
+  .source-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 16px; cursor: pointer; transition: background 0.1s;
+  }
+  .source-row:hover { background: var(--bg); }
+  .source-row-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .source-row-name { font-size: 13px; color: var(--text-primary); flex: 1; }
+  .src-toggle {
+    position: relative; width: 28px; height: 16px;
+    background: var(--border); border: none; border-radius: 99px;
+    cursor: pointer; padding: 0; flex-shrink: 0; transition: background 0.2s;
+  }
+  .src-toggle.on { background: var(--accent); }
+  .src-toggle-knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s; display: block;
+  }
+  .src-toggle.on .src-toggle-knob { transform: translateX(12px); }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-left">
+    <div class="masthead-title">Upstream Intelligence <span class="masthead-tag">Live Feed</span></div>
+    <div class="masthead-date" id="date-display"></div>
+  </div>
+  <div class="masthead-right">
+    <span class="article-count" id="total-count"></span>
+    <div class="auto-refresh-wrap">
+      <span class="ar-label">Auto-refresh</span>
+      <button class="ar-toggle" id="ar-toggle" onclick="toggleAutoRefresh()" title="Toggle auto-refresh">
+        <span class="ar-knob"></span>
+      </button>
+      <span class="ar-interval" id="ar-interval">15m</span>
+    </div>
+    <button class="manage-btn" id="manage-btn" onclick="togglePanel()">⚙ Sources</button>
+    <button class="share-btn" id="share-btn" onclick="copyShareLink()">⎘ Copy link</button>
+    <div class="layout-toggle" id="layout-toggle" title="Toggle layout density">
+      <button class="lt-btn active" id="lt-compact" onclick="setLayout('compact')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <rect x="0" y="0" width="4" height="4" rx="1"/><rect x="5" y="0" width="4" height="4" rx="1"/><rect x="10" y="0" width="4" height="4" rx="1"/>
+          <rect x="0" y="5" width="4" height="4" rx="1"/><rect x="5" y="5" width="4" height="4" rx="1"/><rect x="10" y="5" width="4" height="4" rx="1"/>
+          <rect x="0" y="10" width="4" height="4" rx="1"/><rect x="5" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/>
+        </svg>
+      </button>
+      <button class="lt-btn" id="lt-comfortable" onclick="setLayout('comfortable')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <rect x="0" y="0" width="6" height="6" rx="1"/><rect x="8" y="0" width="6" height="6" rx="1"/>
+          <rect x="0" y="8" width="6" height="6" rx="1"/><rect x="8" y="8" width="6" height="6" rx="1"/>
+        </svg>
+      </button>
+    </div>
+    <button class="refresh-btn" id="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+  </div>
+
+  <div class="sources-panel" id="sources-panel">
+    <div class="panel-header">
+      <span class="panel-title">Visible sources</span>
+      <button class="panel-all-btn" onclick="toggleAllSources()">Toggle all</button>
+    </div>
+    <div id="sources-panel-list"></div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter</span>
+  <button class="pill active" data-f="all"      onclick="setFilter('all')">All</button>
+  <button class="pill"        data-f="fp"       onclick="setFilter('fp')">Foreign policy</button>
+  <button class="pill"        data-f="markets"  onclick="setFilter('markets')">Markets</button>
+  <button class="pill"        data-f="energy"   onclick="setFilter('energy')">Energy</button>
+  <button class="pill"        data-f="domestic" onclick="setFilter('domestic')">Domestic policy</button>
+  <button class="pill"        data-f="military" onclick="setFilter('military')">Military / Defense</button>
+  <button class="pill"        data-f="oil"      onclick="setFilter('oil')">OPEC / Oil markets</button>
+  <div class="search-wrap" id="search-wrap">
+    <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
+    </svg>
+    <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" />
+    <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">×</button>
+  </div>
+</div>
+
+<div class="trending-section" id="trending-section" style="display:none">
+  <div class="trending-header">
+    <span class="trending-title">Trending across sources</span>
+    <span class="trending-sub" id="trending-sub"></span>
+  </div>
+  <div class="clusters" id="clusters"></div>
+</div>
+
+<div class="main">
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const SOURCES = [
+  {
+    id:'zh', name:'ZeroHedge', color:'#C0392B', site:'https://www.zerohedge.com',
+    url:'https://cms.zerohedge.com/fullrss2.xml',
+    fallback:'https://feeds.feedburner.com/zerohedge/feed',
+    bias:'Far Right', biasColor:'#C0392B'
+  },
+  {
+    id:'rt', name:'RT News', color:'#2563A8', site:'https://www.rt.com',
+    url:'https://www.rt.com/rss/',
+    fallback:'https://www.rt.com/rss/news/',
+    bias:'Pro-Kremlin', biasColor:'#2563A8'
+  },
+  {
+    id:'gw', name:'Google News — World', color:'#1A7A52', site:'https://news.google.com',
+    url:'https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en',
+    fallback: null,
+    bias:'Aggregator', biasColor:'#888780'
+  },
+  {
+    id:'aj', name:'Al Jazeera', color:'#8B1A1A', site:'https://www.aljazeera.com',
+    url:'https://www.aljazeera.com/xml/rss/all.xml',
+    fallback:'https://www.aljazeera.com/rss/all.xml',
+    bias:'Center-Left', biasColor:'#2C6B8B'
+  },
+  {
+    id:'op', name:'OilPrice.com', color:'#4A7C3F', site:'https://oilprice.com',
+    url:'https://oilprice.com/rss/main',
+    fallback: null,
+    bias:'Center / Industry', biasColor:'#4A7C3F'
+  },
+  {
+    id:'pt', name:'PressTV', color:'#1A5C8B', site:'https://www.presstv.ir',
+    url:'https://www.presstv.ir/rss.xml',
+    fallback:'https://www.presstv.ir/RSS',
+    bias:'Pro-Iran State', biasColor:'#1A5C8B'
+  },
+  {
+    id:'ha', name:'Haaretz', color:'#5C3D8B', site:'https://www.haaretz.com',
+    url:'https://www.haaretz.com/srv/haaretz-latest-articles.xml',
+    fallback:'https://www.haaretz.com/srv/all-headlines-rss',
+    bias:'Center-Left', biasColor:'#2C6B8B'
+  },
+  {
+    id:'yf', name:'MarketWatch', color:'#6001D2', site:'https://www.marketwatch.com',
+    url:'https://feeds.marketwatch.com/marketwatch/topstories/',
+    fallback:'https://feeds.marketwatch.com/marketwatch/marketpulse/',
+    bias:'Center', biasColor:'#888780'
+  },
+  {
+    id:'rp', name:'Ron Paul Institute', color:'#B8860B', site:'https://ronpaulinstitute.org',
+    url:'https://ronpaulinstitute.org/feed/',
+    fallback:'https://ronpaulinstitute.org/feed/rss/',
+    bias:'Libertarian', biasColor:'#B8860B'
+  },
+  {
+    id:'cnn', name:'CNN — World', color:'#CC0000', site:'https://www.cnn.com/world',
+    url:'http://rss.cnn.com/rss/cnn_world.rss',
+    fallback:'http://rss.cnn.com/rss/cnn_allpolitics.rss',
+    bias:'Center-Left', biasColor:'#2C6B8B'
+  },
+  {
+    id:'fox', name:'Fox News — World', color:'#003366', site:'https://www.foxnews.com/world',
+    url:'https://moxie.foxnews.com/google-publisher/world.xml',
+    fallback:'https://moxie.foxnews.com/google-publisher/politics.xml',
+    bias:'Right', biasColor:'#C0392B'
+  },
+  {
+    id:'bbc', name:'BBC World', color:'#B80000', site:'https://www.bbc.com/news/world',
+    url:'https://feeds.bbci.co.uk/news/world/rss.xml',
+    fallback:'https://feeds.bbci.co.uk/news/rss.xml',
+    bias:'Center-Left', biasColor:'#2C6B8B'
+  },
+  {
+    id:'gz', name:'The Grayzone', color:'#4A4A4A', site:'https://thegrayzone.com',
+    url:'https://thegrayzone.com/feed/',
+    fallback:'https://thegrayzone.substack.com/feed',
+    bias:'Anti-Interventionist', biasColor:'#4A4A4A'
+  },
+];
+
+const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat'];
+const MKT_KW = ['fed ','federal reserve','interest rate','inflation','gdp','recession','treasury','yield','dollar','nasdaq','s&p','dow jones','earnings','stock market','bond market','economy','tariff','trade war','imf','world bank'];
+const EN_KW  = ['oil price','crude','natural gas','lng','opec','permian','eagle ford','shale','refinery','pipeline','barrel','boe','upstream','downstream','energy','petroleum','eog','chevron','exxon','conocophillips','conoco','halliburton','schlumberger','energy sector'];
+const DOM_KW = ['trump','biden','congress','senate','house of representatives','white house','executive order','legislation','supreme court','fda','fbi','cia','doj','doge','rfk','hhs','medicare','medicaid','social security','immigration','border','deportat','tariff','maga','democrat','republican','gop','election','ballot','voting','governor','attorney general','epa','sec ','irs','federal budget','national debt','deficit','stimulus','infrastructure','obamacare','affordable care','vaccine mandate','abortion','gun control','second amendment','first amendment','constitution','federal court','appeals court'];
+const MIL_KW = ['airstrike','air strike','bombing','drone strike','missile strike','ground troops','military operation','special forces','warship','aircraft carrier','fighter jet','f-35','f-16','stealth bomber','navy seal','delta force','marines','army','battalion','brigade','artillery','tank','armored','naval','air force','defense ministry','joint chiefs','centcom','nato forces','deployment','casualties','killed in action','wounded','siege','offensive operation','counteroffensive','precision strike','hypersonic','ballistic','intercept','shoot down','war crime','collateral damage','bunker','fortif'];
+const OIL_KW = ['opec','opec+','saudi aramco','production cut','output cut','oil output','crude production','spare capacity','oil supply','oil demand','wti','brent crude','barrel price','oil price','oil market','petroleum reserve','strategic reserve','eia report','api report','inventory build','inventory draw','oil inventory','refinery capacity','crude export','oil import','oil sanction','energy minister','oil minister','riyadh','abu dhabi','oil cartel','price war','production quota','market share','breakeven','shale production','drilling rig','rig count','baker hughes'];
+
+let activeFilter = 'all';
+let searchQuery = '';
+let store = {};   // { id: { state: 'loading'|'done'|'error', items: [] } }
+
+// Three independent proxy strategies tried in order per feed
+const PROXY_STRATEGIES = [
+  // 1. rss2json — clean URL only, no extra params (unknown params break free tier)
+  feedUrl => ({
+    url: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
+    parse: async res => {
+      const j = await res.json();
+      if (j.status !== 'ok' || !j.items?.length) throw new Error('empty');
+      return j.items.map(i => ({
+        title: i.title || '',
+        link: i.link || i.url || '',
+        pubDate: i.pubDate || '',
+        desc: (i.description || i.content || '').replace(/<[^>]+>/g, ''),
+      }));
+    }
+  }),
+  // 2. corsproxy.io — raw XML fetch
+  feedUrl => ({
+    url: `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`,
+    parse: async res => parseXML(await res.text())
+  }),
+  // 3. allorigins — raw XML fetch
+  feedUrl => ({
+    url: `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`,
+    parse: async res => parseXML(await res.text())
+  }),
+];
+
+function parseXML(text) {
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  const items = [...doc.querySelectorAll('item')];
+  if (!items.length) throw new Error('no items');
+  return items.map(el => {
+    const get = tag => el.querySelector(tag)?.textContent?.trim() || '';
+    return {
+      title: get('title'),
+      link: get('link') || el.querySelector('link')?.getAttribute('href') || '',
+      pubDate: get('pubDate') || get('published'),
+      desc: get('description').replace(/<[^>]+>/g, ''),
+    };
+  }).filter(i => i.title);
+}
+
+function tagItem(title, desc) {
+  const t = (title + ' ' + (desc||'')).toLowerCase();
+  return {
+    fp:  FP_KW.some(k  => t.includes(k)),
+    mkt: MKT_KW.some(k => t.includes(k)),
+    en:  EN_KW.some(k  => t.includes(k)),
+    dom: DOM_KW.some(k => t.includes(k)),
+    mil: MIL_KW.some(k => t.includes(k)),
+    oil: OIL_KW.some(k => t.includes(k)),
+  };
+}
+
+function passesFilter(item) {
+  const tg = tagItem(item.title, item.desc);
+  const text = (item.title + ' ' + (item.desc||'')).toLowerCase();
+
+  // Whole word matching — "war" matches "war" but not "warns" or "award"
+  const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const wordMatch = new RegExp(`\\b${escaped}`, 'i');
+  const matchesSearch = !searchQuery || wordMatch.test(item.title + ' ' + (item.desc||''));
+  const matchesPill =
+    activeFilter === 'all'      ? true :
+    activeFilter === 'fp'       ? tg.fp  :
+    activeFilter === 'markets'  ? tg.mkt :
+    activeFilter === 'energy'   ? tg.en  :
+    activeFilter === 'domestic' ? tg.dom :
+    activeFilter === 'military' ? tg.mil :
+    activeFilter === 'oil'      ? tg.oil : true;
+
+  return matchesSearch && matchesPill;
+}
+
+function highlight(text, query) {
+  if (!query) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`(\\b${escaped})`, 'gi'), '<mark>$1</mark>');
+}
+
+function onSearch(val) {
+  searchQuery = val.trim().toLowerCase();
+  const clearBtn = document.getElementById('search-clear');
+  const wrap = document.getElementById('search-wrap');
+  clearBtn.classList.toggle('visible', searchQuery.length > 0);
+  wrap.classList.toggle('search-active', searchQuery.length > 0);
+  renderAll();
+  renderClusters();
+}
+
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').classList.remove('visible');
+  document.getElementById('search-wrap').classList.remove('search-active');
+  renderAll();
+  renderClusters();
+}
+
+function relTime(str) {
+  if (!str) return '';
+  const d = new Date(str);
+  if (isNaN(d)) return '';
+  const m = Math.floor((Date.now() - d) / 60000);
+  const rel = m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.floor(m/60) + 'h ago' : Math.floor(m/1440) + 'd ago';
+  const abs = d.toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+  return `<span title="${abs}">${rel}</span><span class="article-abs">${abs}</span>`;
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.f === f));
+  renderAll();
+  renderClusters();
+}
+
+async function fetchFeed(src) {
+  store[src.id] = { state: 'loading', items: [] };
+  renderCard(src);
+
+  const feedUrls = [src.url, src.fallback].filter(Boolean);
+
+  for (const feedUrl of feedUrls) {
+    for (const strategy of PROXY_STRATEGIES) {
+      try {
+        const { url, parse } = strategy(feedUrl);
+        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const raw = await parse(res);
+        const items = raw.slice(0, 25).filter(i => i.title);
+        if (!items.length) throw new Error('empty');
+        // Sort newest-first by publish date
+        items.sort((a, b) => {
+          const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+          const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+          return db - da;
+        });
+        store[src.id] = { state: 'done', items };
+        renderCard(src);
+        updateTotalCount();
+        return;
+      } catch(e) { /* next strategy */ }
+    }
+  }
+
+  store[src.id] = { state: 'error', items: [] };
+  renderCard(src);
+  updateTotalCount();
+}
+
+function buildArticleHTML(item) {
+  const tg = tagItem(item.title, item.desc);
+  const tagged = tg.fp || tg.mkt || tg.en || tg.dom || tg.mil || tg.oil;
+  const badges = [
+    tg.fp  ? `<span class="badge badge-fp">foreign policy</span>`   : '',
+    tg.mkt ? `<span class="badge badge-mkt">markets</span>`         : '',
+    tg.en  ? `<span class="badge badge-en">energy</span>`           : '',
+    tg.dom ? `<span class="badge badge-dom">domestic policy</span>` : '',
+    tg.mil ? `<span class="badge badge-mil">military</span>`        : '',
+    tg.oil ? `<span class="badge badge-oil">oil markets</span>`     : '',
+    !tagged ? `<span class="badge badge-other">other</span>`        : '',
+  ].join('');
+  const safeLink = item.link.replace(/"/g,'&quot;');
+  const displayTitle = highlight(item.title, searchQuery);
+  return `<a class="article" href="${safeLink}" target="_blank" rel="noopener">
+    <div class="article-title">${displayTitle}</div>
+    <div class="article-meta">
+      <span class="article-time">${relTime(item.pubDate)}</span>
+      ${badges}
+    </div>
+  </a>`;
+}
+
+function renderCard(src) {
+  const data = store[src.id] || { state: 'loading', items: [] };
+  const card = document.getElementById('card-' + src.id);
+  if (!card) return;
+
+  const filtered = data.items.filter(passesFilter);
+  const hasActiveFilter = activeFilter !== 'all' || searchQuery;
+
+  // Hide card entirely when loaded but nothing matches
+  if (data.state === 'done' && filtered.length === 0 && hasActiveFilter) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+
+  let body = '';
+  if (data.state === 'loading') {
+    body = `<div class="state-msg">Loading…</div>`;
+  } else if (data.state === 'error') {
+    body = `<div class="state-msg error">
+      Could not load feed.<br>
+      <a href="${src.site}" target="_blank">Open ${src.name} directly ↗</a>
+    </div>`;
+  } else {
+    body = filtered.map(buildArticleHTML).join('');
+  }
+
+  const wrap = card.querySelector('.articles-wrap');
+  if (wrap) wrap.innerHTML = body;
+}
+
+function renderAll() {
+  SOURCES.forEach(src => renderCard(src));
+  updateTotalCount();
+}
+
+function updateTotalCount() {
+  let total = 0;
+  SOURCES.forEach(src => {
+    const data = store[src.id];
+    if (data?.state === 'done') total += data.items.filter(passesFilter).length;
+  });
+  const el = document.getElementById('total-count');
+  if (el) el.textContent = total > 0 ? total + ' articles' : '';
+  // Re-run clustering whenever a feed finishes loading
+  const anyDone = SOURCES.some(s => store[s.id]?.state === 'done');
+  if (anyDone) renderClusters();
+}
+
+// ── Source visibility ──
+const VIS_KEY = 'dailyten_visibility';
+
+function loadVisibility() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VIS_KEY));
+    if (saved && typeof saved === 'object') return saved;
+  } catch(e) {}
+  // Default: all visible
+  const def = {};
+  SOURCES.forEach(s => { def[s.id] = true; });
+  return def;
+}
+
+function saveVisibility(vis) {
+  try { localStorage.setItem(VIS_KEY, JSON.stringify(vis)); } catch(e) {}
+}
+
+function isVisible(id) {
+  return loadVisibility()[id] !== false;
+}
+
+function toggleSource(id) {
+  const vis = loadVisibility();
+  vis[id] = !vis[id];
+  saveVisibility(vis);
+  renderPanelList();
+  // Rebuild grid with new visibility
+  loadAll();
+}
+
+function toggleAllSources() {
+  const vis = loadVisibility();
+  const anyOff = SOURCES.some(s => vis[s.id] === false);
+  SOURCES.forEach(s => { vis[s.id] = anyOff; });
+  saveVisibility(vis);
+  renderPanelList();
+  loadAll();
+}
+
+function renderPanelList() {
+  const vis = loadVisibility();
+  const list = document.getElementById('sources-panel-list');
+  if (!list) return;
+  list.innerHTML = SOURCES.map(src => {
+    const on = vis[src.id] !== false;
+    return `<div class="source-row" onclick="toggleSource('${src.id}')">
+      <div class="source-row-dot" style="background:${src.color}"></div>
+      <span class="source-row-name">${src.name}</span>
+      <button class="src-toggle ${on ? 'on' : ''}" onclick="event.stopPropagation();toggleSource('${src.id}')">
+        <span class="src-toggle-knob"></span>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function togglePanel() {
+  const panel = document.getElementById('sources-panel');
+  const btn = document.getElementById('manage-btn');
+  const isOpen = panel.classList.toggle('visible');
+  btn.classList.toggle('open', isOpen);
+  if (isOpen) renderPanelList();
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', e => {
+  const panel = document.getElementById('sources-panel');
+  const btn = document.getElementById('manage-btn');
+  if (!panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.classList.remove('visible');
+    btn.classList.remove('open');
+  }
+});
+
+// ── Layout toggle ──
+const LAYOUT_KEY = 'dailyten_layout';
+
+function setLayout(mode) {
+  const grid = document.getElementById('grid');
+  const compactBtn = document.getElementById('lt-compact');
+  const comfyBtn = document.getElementById('lt-comfortable');
+  if (mode === 'comfortable') {
+    grid.classList.add('comfortable');
+    compactBtn.classList.remove('active');
+    comfyBtn.classList.add('active');
+  } else {
+    grid.classList.remove('comfortable');
+    compactBtn.classList.add('active');
+    comfyBtn.classList.remove('active');
+  }
+  try { localStorage.setItem(LAYOUT_KEY, mode); } catch(e) {}
+}
+
+function initLayout() {
+  let saved = 'compact';
+  try { saved = localStorage.getItem(LAYOUT_KEY) || 'compact'; } catch(e) {}
+  setLayout(saved);
+}
+
+// ── Bias overrides ──
+const BIAS_KEY = 'dailyten_bias';
+
+function loadBiasOverrides() {
+  try { return JSON.parse(localStorage.getItem(BIAS_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function saveBiasOverride(id, label) {
+  const overrides = loadBiasOverrides();
+  overrides[id] = label;
+  try { localStorage.setItem(BIAS_KEY, JSON.stringify(overrides)); } catch(e) {}
+}
+
+function getBiasLabel(src) {
+  const overrides = loadBiasOverrides();
+  return overrides[src.id] || src.bias;
+}
+
+function editBias(id) {
+  const src = SOURCES.find(s => s.id === id);
+  if (!src) return;
+  const badge = document.getElementById(`bias-${id}`);
+  if (!badge) return;
+  const current = getBiasLabel(src);
+  const wrap = badge.parentElement;
+  // Replace badge with input
+  const input = document.createElement('input');
+  input.className = 'bias-input';
+  input.value = current;
+  input.maxLength = 30;
+  wrap.replaceChild(input, badge);
+  input.focus();
+  input.select();
+  function commit() {
+    const val = input.value.trim() || src.bias;
+    saveBiasOverride(id, val);
+    renderBadge(src, wrap, val);
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { input.blur(); }
+    if (e.key === 'Escape') { input.value = current; input.blur(); }
+  });
+}
+
+function renderBadge(src, container, label) {
+  const badge = document.createElement('span');
+  badge.className = 'bias-badge';
+  badge.id = `bias-${src.id}`;
+  badge.title = 'Click to edit bias label';
+  badge.style.background = src.biasColor + '18';
+  badge.style.color = src.biasColor;
+  badge.style.borderColor = src.biasColor + '40';
+  badge.textContent = label;
+  badge.onclick = () => editBias(src.id);
+  // Replace whatever is in container (input or old badge)
+  const existing = container.querySelector('.bias-badge, .bias-input');
+  if (existing) container.replaceChild(badge, existing);
+  else container.appendChild(badge);
+}
+
+// ── Order management ──
+const ORDER_KEY = 'dailyten_order';
+const DEFAULT_ORDER = SOURCES.map(s => s.id);
+
+function loadOrder() {
+  // 1. Check URL param first
+  const params = new URLSearchParams(window.location.search);
+  const urlOrder = params.get('order');
+  const urlHidden = params.get('hidden');
+
+  // Apply hidden param to visibility if present
+  if (urlHidden) {
+    const vis = loadVisibility();
+    urlHidden.split(',').forEach(id => { if (DEFAULT_ORDER.includes(id)) vis[id] = false; });
+    saveVisibility(vis);
+  }
+
+  if (urlOrder) {
+    const ids = urlOrder.split(',').filter(id => DEFAULT_ORDER.includes(id));
+    DEFAULT_ORDER.forEach(id => { if (!ids.includes(id)) ids.push(id); });
+    saveOrder(ids);
+    return ids;
+  }
+  // 2. Fall back to localStorage
+  try {
+    const saved = JSON.parse(localStorage.getItem(ORDER_KEY));
+    if (Array.isArray(saved) && saved.length) {
+      const ids = saved.filter(id => DEFAULT_ORDER.includes(id));
+      DEFAULT_ORDER.forEach(id => { if (!ids.includes(id)) ids.push(id); });
+      return ids;
+    }
+  } catch(e) {}
+  return [...DEFAULT_ORDER];
+}
+
+function saveOrder(ids) {
+  try { localStorage.setItem(ORDER_KEY, JSON.stringify(ids)); } catch(e) {}
+}
+
+function getOrderedSources() {
+  const order = loadOrder();
+  return order
+    .map(id => SOURCES.find(s => s.id === id))
+    .filter(Boolean)
+    .filter(s => isVisible(s.id));
+}
+
+function copyShareLink() {
+  const order = loadOrder();
+  const vis = loadVisibility();
+  const hidden = SOURCES.filter(s => vis[s.id] === false).map(s => s.id);
+  const base = window.location.href.split('?')[0];
+  let url = `${base}?order=${order.join(',')}`;
+  if (hidden.length) url += `&hidden=${hidden.join(',')}`;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('share-btn');
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '⎘ Copy link';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  const ordered = getOrderedSources();
+  grid.innerHTML = ordered.map(src => `
+    <div class="card" id="card-${src.id}" draggable="true" data-id="${src.id}">
+      <div class="card-header">
+        <div class="drag-handle"><span></span><span></span><span></span></div>
+        <div class="source-bar" style="background:${src.color}"></div>
+        <span class="card-title">${src.name}</span>
+        <span class="bias-wrap"></span>
+        <a class="visit-link" href="${src.site}" target="_blank" rel="noopener">Visit ↗</a>
+      </div>
+      <div class="articles-wrap">
+        <div class="state-msg">Loading…</div>
+      </div>
+    </div>
+  `).join('');
+  // Render bias badges
+  ordered.forEach(src => {
+    const wrap = document.querySelector(`#card-${src.id} .bias-wrap`);
+    if (wrap) renderBadge(src, wrap, getBiasLabel(src));
+  });
+  initDrag();
+}
+
+function initDrag() {
+  const grid = document.getElementById('grid');
+  let dragSrcId = null;
+
+  grid.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragSrcId = card.dataset.id;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      grid.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      grid.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+      if (card.dataset.id !== dragSrcId) card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      if (!dragSrcId || dragSrcId === card.dataset.id) return;
+
+      // Reorder in DOM
+      const cards = [...grid.querySelectorAll('.card')];
+      const srcEl = grid.querySelector(`[data-id="${dragSrcId}"]`);
+      const tgtEl = card;
+      const srcIdx = cards.indexOf(srcEl);
+      const tgtIdx = cards.indexOf(tgtEl);
+      if (srcIdx < tgtIdx) grid.insertBefore(srcEl, tgtEl.nextSibling);
+      else grid.insertBefore(srcEl, tgtEl);
+
+      // Persist new order
+      const newOrder = [...grid.querySelectorAll('.card')].map(c => c.dataset.id);
+      saveOrder(newOrder);
+    });
+  });
+}
+
+function setDateDisplay() {
+  const now = new Date();
+  const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+  document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', opts);
+}
+
+function loadAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.textContent = '↻ Refreshing…';
+  btn.classList.add('spinning');
+  store = {};
+  buildGrid();
+  setDateDisplay();
+  const ordered = getOrderedSources();
+  let pending = ordered.length;
+  ordered.forEach((src, i) => {
+    setTimeout(() => {
+      fetchFeed(src).finally(() => {
+        pending--;
+        if (pending === 0) {
+          btn.textContent = '↻ Refresh';
+          btn.classList.remove('spinning');
+        }
+      });
+    }, i < 3 ? 0 : (i - 2) * 150);
+  });
+}
+
+let autoRefreshTimer = null;
+const AUTO_REFRESH_MS = 15 * 60 * 1000; // 15 minutes
+
+function toggleAutoRefresh() {
+  const btn = document.getElementById('ar-toggle');
+  const isOn = btn.classList.toggle('on');
+  if (isOn) {
+    scheduleAutoRefresh();
+  } else {
+    clearTimeout(autoRefreshTimer);
+    autoRefreshTimer = null;
+    document.getElementById('ar-interval').textContent = '15m';
+  }
+}
+
+function scheduleAutoRefresh() {
+  clearTimeout(autoRefreshTimer);
+  let remaining = AUTO_REFRESH_MS;
+  const tick = 60000; // update countdown every minute
+  function countdown() {
+    remaining -= tick;
+    const mins = Math.max(0, Math.round(remaining / 60000));
+    document.getElementById('ar-interval').textContent = mins + 'm';
+    if (remaining <= 0) {
+      loadAll();
+      remaining = AUTO_REFRESH_MS;
+    }
+    const btn = document.getElementById('ar-toggle');
+    if (btn.classList.contains('on')) {
+      autoRefreshTimer = setTimeout(countdown, tick);
+    }
+  }
+  document.getElementById('ar-interval').textContent = '15m';
+  autoRefreshTimer = setTimeout(countdown, tick);
+}
+
+// ── Story clustering ──
+
+const STOP_WORDS = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','by','from','as','is','was','are','were','be','been','has','have','had','will','would','could','should','may','might','that','this','these','those','its','it','his','her','their','our','says','say','said','after','over','into','about','up','out','than','so','not','no','more','new','us','un','eu']);
+
+function tokenize(title) {
+  return title.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !STOP_WORDS.has(w));
+}
+
+function jaccard(setA, setB) {
+  const intersection = new Set([...setA].filter(x => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+  return union.size === 0 ? 0 : intersection.size / union.size;
+}
+
+function buildClusters() {
+  const allArticles = [];
+  SOURCES.forEach(src => {
+    const data = store[src.id];
+    if (data?.state !== 'done') return;
+    data.items
+      .filter(item => passesFilter(item))
+      .forEach(item => {
+        allArticles.push({ ...item, srcId: src.id, srcName: src.name, srcColor: src.color });
+      });
+  });
+  if (allArticles.length === 0) return [];
+
+  const tokenized = allArticles.map(a => ({ ...a, tokens: new Set(tokenize(a.title)) }));
+  const used = new Set();
+  const clusters = [];
+
+  for (let i = 0; i < tokenized.length; i++) {
+    if (used.has(i)) continue;
+    const group = [tokenized[i]];
+    used.add(i);
+    for (let j = i + 1; j < tokenized.length; j++) {
+      if (used.has(j)) continue;
+      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.15);
+      if (similar) {
+        const alreadyHasSrc = group.some(g => g.srcId === tokenized[j].srcId);
+        if (!alreadyHasSrc) { group.push(tokenized[j]); used.add(j); }
+      }
+    }
+    if (group.length >= 3) clusters.push(group);
+  }
+
+  clusters.sort((a, b) => {
+    if (b.length !== a.length) return b.length - a.length;
+    const latestA = Math.max(...a.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
+    const latestB = Math.max(...b.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
+    return latestB - latestA;
+  });
+
+  return clusters.slice(0, 8);
+}
+
+function clusterTopic(group) {
+  const freq = {};
+  group.forEach(a => { a.tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; }); });
+  const top = Object.entries(freq)
+    .filter(([, c]) => c >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([w]) => w.charAt(0).toUpperCase() + w.slice(1));
+  return top.length ? top.join(' · ') : group[0].title.slice(0, 40);
+}
+
+function renderClusters() {
+  const clusters = buildClusters();
+  const section = document.getElementById('trending-section');
+  const container = document.getElementById('clusters');
+  const sub = document.getElementById('trending-sub');
+
+  if (clusters.length === 0) { section.style.display = 'none'; return; }
+
+  section.style.display = 'block';
+  sub.textContent = `${clusters.length} stories covered by 3+ sources`;
+
+  container.innerHTML = clusters.map(group => {
+    const topic = clusterTopic(group);
+    const mostRecent = group.filter(a => a.pubDate).sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0];
+    const timeStr = mostRecent ? relTime(mostRecent.pubDate) : '';
+    const headlines = group.slice(0, 5).map(a => {
+      const safeLink = a.link.replace(/"/g, '&quot;');
+      return `<a class="cluster-headline" href="${safeLink}" target="_blank" rel="noopener">
+        <div class="cluster-dot" style="background:${a.srcColor}"></div>
+        <div>
+          <div class="cluster-hl-text">${a.title}</div>
+          <div class="cluster-hl-source">${a.srcName}</div>
+        </div>
+      </a>`;
+    }).join('');
+
+    return `<div class="cluster-card">
+      <div class="cluster-topic">${topic}</div>
+      <div class="cluster-meta">
+        <span class="cluster-source-count">${group.length} sources</span>
+        <span>${timeStr}</span>
+      </div>
+      <div class="cluster-headlines">${headlines}</div>
+    </div>`;
+  }).join('');
+}
+
+loadAll();
+initLayout();
+</script>
+</body>
+</html>
