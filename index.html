@@ -761,6 +761,8 @@ function renderCard(src) {
     card.style.display = 'none';
     return;
   }
+  // Respect visibility — don't show a hidden source
+  if (!isVisible(src.id)) return;
   card.style.display = '';
 
   let body = '';
@@ -780,7 +782,10 @@ function renderCard(src) {
 }
 
 function renderAll() {
-  SOURCES.forEach(src => renderCard(src));
+  SOURCES.forEach(src => {
+    if (!isVisible(src.id)) return;
+    renderCard(src);
+  });
   updateTotalCount();
 }
 
