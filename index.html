@@ -825,7 +825,7 @@ function toggleSource(id) {
   saveVisibility(vis);
   const card = document.getElementById('card-' + id);
   if (vis[id] === false) {
-    // Hiding — just hide the card and update clusters
+    // Hiding — hide the card and update clusters immediately
     if (card) card.style.display = 'none';
     renderClusters();
     const ordered = getOrderedSources();
@@ -1244,6 +1244,7 @@ function jaccard(setA, setB) {
 function buildClusters() {
   const allArticles = [];
   SOURCES.forEach(src => {
+    if (!isVisible(src.id)) return;
     const data = store[src.id];
     if (data?.state !== 'done') return;
     data.items
