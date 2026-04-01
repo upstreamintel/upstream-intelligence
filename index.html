@@ -84,23 +84,6 @@
     border-radius: 4px;
     vertical-align: middle;
   }
-  /* ── Auto-refresh toggle ── */
-  .auto-refresh-wrap { display: flex; align-items: center; gap: 6px; }
-  .ar-label { font-size: 11px; color: var(--text-muted); }
-  .ar-interval { font-size: 11px; color: var(--text-muted); min-width: 24px; }
-  .ar-toggle {
-    position: relative; width: 32px; height: 18px;
-    background: var(--border); border: none; border-radius: 99px;
-    cursor: pointer; padding: 0; transition: background 0.2s; flex-shrink: 0;
-  }
-  .ar-toggle.on { background: var(--accent); }
-  .ar-knob {
-    position: absolute; top: 2px; left: 2px;
-    width: 14px; height: 14px; border-radius: 50%;
-    background: #fff; transition: transform 0.2s;
-    display: block;
-  }
-  .ar-toggle.on .ar-knob { transform: translateX(14px); }
   .masthead-date {
     font-size: 12px;
     color: var(--text-muted);
@@ -253,16 +236,7 @@
     outline: none; width: 130px;
   }
   .bias-input:focus { border-color: var(--accent); }
-  /* ── Share button ── */
-  .share-btn {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12px; color: var(--text-secondary);
-    background: none; border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 14px;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .share-btn:hover { background: var(--bg); border-color: var(--text-muted); }
-  .share-btn.copied { color: var(--tag-mkt); border-color: var(--tag-mkt); }
+
   .source-bar { width: 3px; height: 18px; border-radius: 2px; flex-shrink: 0; }
   .card-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
   .card-count { font-size: 11px; color: var(--text-muted); margin-left: auto; }
@@ -438,15 +412,7 @@
   </div>
   <div class="masthead-right">
     <span class="article-count" id="total-count"></span>
-    <div class="auto-refresh-wrap">
-      <span class="ar-label">Auto-refresh</span>
-      <button class="ar-toggle" id="ar-toggle" onclick="toggleAutoRefresh()" title="Toggle auto-refresh">
-        <span class="ar-knob"></span>
-      </button>
-      <span class="ar-interval" id="ar-interval">15m</span>
-    </div>
     <button class="manage-btn" id="manage-btn" onclick="togglePanel()">⚙ Sources</button>
-    <button class="share-btn" id="share-btn" onclick="copyShareLink()">⎘ Copy link</button>
     <div class="layout-toggle" id="layout-toggle" title="Toggle layout density">
       <button class="lt-btn active" id="lt-compact" onclick="setLayout('compact')">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
@@ -864,7 +830,7 @@ function renderPanelList() {
   const vis = loadVisibility();
   const list = document.getElementById('sources-panel-list');
   if (!list) return;
-  list.innerHTML = SOURCES.map(src => {
+  list.innerHTML = getOrderedSources().map(src => {
     const on = vis[src.id] !== false;
     return `<div class="source-row" onclick="toggleSource('${src.id}')">
       <div class="source-row-dot" style="background:${src.color}"></div>
@@ -1027,23 +993,6 @@ function getOrderedSources() {
     .filter(s => isVisible(s.id));
 }
 
-function copyShareLink() {
-  const order = loadOrder();
-  const vis = loadVisibility();
-  const hidden = SOURCES.filter(s => vis[s.id] === false).map(s => s.id);
-  const base = window.location.href.split('?')[0];
-  let url = `${base}?order=${order.join(',')}`;
-  if (hidden.length) url += `&hidden=${hidden.join(',')}`;
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = document.getElementById('share-btn');
-    btn.textContent = '✓ Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => {
-      btn.textContent = '⎘ Copy link';
-      btn.classList.remove('copied');
-    }, 2000);
-  });
-}
 
 function buildGrid() {
   const grid = document.getElementById('grid');
@@ -1138,42 +1087,6 @@ function loadAll() {
       });
     }, i < 3 ? 0 : (i - 2) * 150);
   });
-}
-
-let autoRefreshTimer = null;
-const AUTO_REFRESH_MS = 15 * 60 * 1000; // 15 minutes
-
-function toggleAutoRefresh() {
-  const btn = document.getElementById('ar-toggle');
-  const isOn = btn.classList.toggle('on');
-  if (isOn) {
-    scheduleAutoRefresh();
-  } else {
-    clearTimeout(autoRefreshTimer);
-    autoRefreshTimer = null;
-    document.getElementById('ar-interval').textContent = '15m';
-  }
-}
-
-function scheduleAutoRefresh() {
-  clearTimeout(autoRefreshTimer);
-  let remaining = AUTO_REFRESH_MS;
-  const tick = 60000; // update countdown every minute
-  function countdown() {
-    remaining -= tick;
-    const mins = Math.max(0, Math.round(remaining / 60000));
-    document.getElementById('ar-interval').textContent = mins + 'm';
-    if (remaining <= 0) {
-      loadAll();
-      remaining = AUTO_REFRESH_MS;
-    }
-    const btn = document.getElementById('ar-toggle');
-    if (btn.classList.contains('on')) {
-      autoRefreshTimer = setTimeout(countdown, tick);
-    }
-  }
-  document.getElementById('ar-interval').textContent = '15m';
-  autoRefreshTimer = setTimeout(countdown, tick);
 }
 
 // ── Story clustering ──
