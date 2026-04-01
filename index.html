@@ -561,6 +561,18 @@ const SOURCES = [
     fallback:'https://thegrayzone.substack.com/feed',
     bias:'Anti-Interventionist', biasColor:'#4A4A4A'
   },
+  {
+    id:'ogj', name:'Oil & Gas Journal', color:'#8B0000', site:'https://www.ogj.com',
+    url:'https://www.ogj.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22drilling-production%22%7D',
+    fallback:'https://www.ogj.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22exploration-development%22%7D',
+    bias:'Industry / Trade', biasColor:'#4A7C3F'
+  },
+  {
+    id:'wo', name:'World Oil', color:'#1A5276', site:'https://www.worldoil.com/news',
+    url:'https://www.worldoil.com/rss?feed=topic:eagle+ford',
+    fallback:'https://www.worldoil.com/rss?feed=news',
+    bias:'Industry / Trade', biasColor:'#4A7C3F'
+  },
 ];
 
 const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat'];
@@ -585,7 +597,7 @@ const PROXY_STRATEGIES = [
       return j.items.map(i => ({
         title: i.title || '',
         link: i.link || i.url || '',
-        pubDate: i.pubDate || '',
+        pubDate: i.pubDate || i.published || i.date || i.updated || '',
         desc: (i.description || i.content || '').replace(/<[^>]+>/g, ''),
       }));
     }
@@ -611,7 +623,7 @@ function parseXML(text) {
     return {
       title: get('title'),
       link: get('link') || el.querySelector('link')?.getAttribute('href') || '',
-      pubDate: get('pubDate') || get('published'),
+      pubDate: get('pubDate') || get('published') || get('dc\:date') || get('updated') || get('date'),
       desc: get('description').replace(/<[^>]+>/g, ''),
     };
   }).filter(i => i.title);
