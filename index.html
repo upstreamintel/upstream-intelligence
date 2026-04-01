@@ -815,10 +815,39 @@ function toggleSource(id) {
   const vis = loadVisibility();
   vis[id] = !vis[id];
   saveVisibility(vis);
-  // Show/hide card directly — no grid rebuild, no async churn
   const card = document.getElementById('card-' + id);
-  if (card) card.style.display = vis[id] === false ? 'none' : '';
+  if (vis[id] === false) {
+    // Hiding — just hide the card and update clusters
+    if (card) card.style.display = 'none';
+    renderClusters();
+    const ordered = getOrderedSources();
+    if (ordered.length === 0) {
+      document.getElementById('trending-section').style.display = 'none';
+      showEmptyState();
+    }
+  } else {
+    // Showing — if empty state is displayed, rebuild the full grid first
+    if (document.getElementById('empty-state')) {
+      buildGrid();
+      // Apply visibility to all cards after rebuild
+      const allVis = loadVisibility();
+      SOURCES.forEach(s => {
+        const c = document.getElementById('card-' + s.id);
+        if (c && allVis[s.id] === false) c.style.display = 'none';
+      });
+    }
+    const freshCard = document.getElementById('card-' + id);
+    if (freshCard) freshCard.style.display = '';
+    const src = SOURCES.find(s => s.id === id);
+    if (src && (!store[id] || (store[id].state === 'loading' && !store[id].items.length))) {
+      fetchFeed(src);
+    } else if (src) {
+      renderCard(src);
+      renderClusters();
+    }
+  }
   renderPanelList();
+  updateSourceBtn();
   // Keep panel open
   const panel = document.getElementById('sources-panel');
   const btn = document.getElementById('manage-btn');
@@ -831,12 +860,35 @@ function toggleAllSources() {
   const anyOff = SOURCES.some(s => vis[s.id] === false);
   SOURCES.forEach(s => { vis[s.id] = anyOff; });
   saveVisibility(vis);
-  // Show/hide cards directly
-  SOURCES.forEach(s => {
-    const card = document.getElementById('card-' + s.id);
-    if (card) card.style.display = vis[s.id] === false ? 'none' : '';
-  });
+  const turningOn = anyOff; // if anyOff was true, we're now turning everything on
+  if (turningOn && document.getElementById('empty-state')) {
+    // Grid was replaced by empty state — rebuild it fully
+    buildGrid();
+    SOURCES.forEach(s => {
+      if (!store[s.id] || (store[s.id].state === 'loading' && !store[s.id].items.length)) {
+        fetchFeed(s);
+      } else {
+        renderCard(s);
+      }
+    });
+    renderClusters();
+  } else {
+    SOURCES.forEach(s => {
+      const card = document.getElementById('card-' + s.id);
+      if (card) card.style.display = vis[s.id] === false ? 'none' : '';
+      if (vis[s.id] !== false && (!store[s.id] || (store[s.id].state === 'loading' && !store[s.id].items.length))) {
+        fetchFeed(s);
+      }
+    });
+    renderClusters();
+    const ordered = getOrderedSources();
+    if (ordered.length === 0) {
+      document.getElementById('trending-section').style.display = 'none';
+      showEmptyState();
+    }
+  }
   renderPanelList();
+  updateSourceBtn();
 }
 
 function renderPanelList() {
@@ -855,6 +907,36 @@ function renderPanelList() {
       </button>
     </div>`;
   }).join('');
+}
+
+function updateSourceBtn() {
+  const visible = SOURCES.filter(s => isVisible(s.id)).length;
+  const total = SOURCES.length;
+  const btn = document.getElementById('manage-btn');
+  if (visible === 0) {
+    btn.textContent = `⚙ Sources (0/${total})`;
+    btn.style.color = '#C0392B';
+    btn.style.borderColor = '#C0392B';
+  } else {
+    btn.textContent = `⚙ Sources (${visible}/${total})`;
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+}
+
+function showEmptyState() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = `
+    <div id="empty-state" style="grid-column:1/-1;text-align:center;padding:60px 24px;">
+      <div style="font-size:32px;margin-bottom:12px;">📭</div>
+      <div style="font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">No sources visible</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">All sources are currently hidden. Enable at least one to see headlines.</div>
+      <button id="empty-manage-btn" style="font-family:'DM Sans',sans-serif;font-size:13px;color:var(--accent);background:var(--accent-light);border:1px solid var(--accent);border-radius:6px;padding:8px 18px;cursor:pointer;">⚙ Manage Sources</button>
+    </div>`;
+  document.getElementById('empty-manage-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    togglePanel();
+  });
 }
 
 function togglePanel() {
@@ -1094,10 +1176,12 @@ function loadAll() {
   store = {};
   buildGrid();
   setDateDisplay();
+  updateSourceBtn();
   const ordered = getOrderedSources();
   if (ordered.length === 0) {
     btn.textContent = '↻ Refresh';
     btn.classList.remove('spinning');
+    showEmptyState();
     return;
   }
   let pending = ordered.length;
