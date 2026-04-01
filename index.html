@@ -305,6 +305,81 @@
     .masthead-title { font-size: 20px; }
   }
 
+  /* ── Breaking news bar ── */
+  .breaking-bar {
+    display: none;
+    background: #C0392B;
+    color: #fff;
+    padding: 9px 32px;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    position: relative;
+    z-index: 90;
+    animation: breakingPulse 2s ease-in-out 3;
+  }
+  .breaking-bar.visible { display: flex; }
+  @keyframes breakingPulse {
+    0%, 100% { background: #C0392B; }
+    50% { background: #E74C3C; }
+  }
+  .breaking-label {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px; border-radius: 3px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .breaking-text {
+    flex: 1; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    font-weight: 400;
+  }
+  .breaking-link {
+    color: #fff; text-decoration: none;
+    flex: 1; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .breaking-link:hover { text-decoration: underline; }
+  .breaking-source {
+    font-size: 11px; opacity: 0.75;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .breaking-dismiss {
+    background: none; border: none; color: #fff;
+    font-size: 16px; cursor: pointer; opacity: 0.7;
+    padding: 0 0 0 8px; flex-shrink: 0; line-height: 1;
+  }
+  .breaking-dismiss:hover { opacity: 1; }
+  .breaking-more {
+    background: rgba(255,255,255,0.2); border: none; color: #fff;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    padding: 2px 8px; border-radius: 3px; white-space: nowrap;
+    flex-shrink: 0; transition: background 0.15s;
+  }
+  .breaking-more:hover { background: rgba(255,255,255,0.35); }
+  .breaking-dropdown {
+    display: none;
+    position: fixed; left: 0; right: 0;
+    background: #922B21; border-top: 1px solid rgba(255,255,255,0.15);
+    z-index: 999; max-height: 320px; overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .breaking-dropdown.open { display: block; }
+  .breaking-drop-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 9px 32px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    text-decoration: none; color: #fff; transition: background 0.1s;
+  }
+  .breaking-drop-item:hover { background: rgba(255,255,255,0.1); }
+  .breaking-drop-item:last-child { border-bottom: none; }
+  .breaking-drop-title { font-size: 12px; flex: 1; line-height: 1.4; }
+  .breaking-drop-meta { font-size: 11px; opacity: 0.65; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+  @media (max-width: 600px) {
+    .breaking-bar { padding: 9px 16px; }
+    .breaking-drop-item { padding: 9px 16px; }
+  }
+
   /* ── Trending section ── */
   .trending-section {
     padding: 20px 32px 4px;
@@ -469,6 +544,16 @@
   </div>
 </div>
 
+<div class="breaking-bar" id="breaking-bar">
+  <span class="breaking-label">⚠ Breaking</span>
+  <a class="breaking-link" id="breaking-link" href="#" target="_blank" rel="noopener"></a>
+  <span class="breaking-source" id="breaking-source"></span>
+  <button class="breaking-more" id="breaking-more" onclick="toggleBreakingDropdown(event)" style="display:none"></button>
+  <button class="breaking-seen-btn" id="breaking-seen-btn" onclick="event.stopPropagation();markSeenMain()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;">✓ Seen</button>
+  <button class="breaking-dismiss" onclick="dismissBreaking()" title="Dismiss">×</button>
+</div>
+<div class="breaking-dropdown" id="breaking-dropdown"></div>
+
 <div class="trending-section" id="trending-section" style="display:none">
   <div class="trending-header">
     <span class="trending-title">Trending across sources</span>
@@ -585,6 +670,29 @@ const OIL_KW = ['opec','opec+','saudi aramco','production cut','output cut','oil
 let activeFilter = 'all';
 let searchQuery = '';
 let store = {};   // { id: { state: 'loading'|'done'|'error', items: [] } }
+
+// ── Breaking news seen/new tracking ──
+const SEEN_KEY = 'upstream_seen_links';
+const PREV_KEY = 'upstream_prev_links';
+
+function loadSeenLinks() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)) || []); } catch(e) { return new Set(); }
+}
+function saveSeenLinks(s) {
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...s])); } catch(e) {}
+}
+function loadPrevLinks() {
+  try { return new Set(JSON.parse(localStorage.getItem(PREV_KEY)) || []); } catch(e) { return new Set(); }
+}
+function savePrevLinks(s) {
+  try { localStorage.setItem(PREV_KEY, JSON.stringify([...s])); } catch(e) {}
+}
+function markSeen(link) {
+  const seen = loadSeenLinks();
+  seen.add(link);
+  saveSeenLinks(seen);
+  checkBreaking();
+}
 
 // Three independent proxy strategies tried in order per feed
 const PROXY_STRATEGIES = [
@@ -727,6 +835,12 @@ async function fetchFeed(src) {
         store[src.id] = { state: 'done', items };
         renderCard(src);
         updateTotalCount();
+        // Check breaking BEFORE saving to prevLinks so new articles are detected
+        checkBreaking();
+        // Now save links as previously seen for next refresh
+        const prev = loadPrevLinks();
+        items.forEach(i => { if (i.link) prev.add(i.link); });
+        savePrevLinks(prev);
         return;
       } catch(e) { /* next strategy */ }
     }
@@ -1216,6 +1330,10 @@ function loadAll() {
   const btn = document.getElementById('refresh-btn');
   btn.textContent = '↻ Refreshing…';
   btn.classList.add('spinning');
+  breakingDismissed = false;
+  document.getElementById('breaking-bar').classList.remove('visible');
+  // Clear prevLinks so this session starts fresh — only compare within same session
+  savePrevLinks(new Set());
   store = {};
   buildGrid();
   setDateDisplay();
@@ -1240,6 +1358,119 @@ function loadAll() {
     }, i < 3 ? 0 : (i - 2) * 150);
   });
 }
+
+// ── Breaking news bar ──
+
+const BREAKING_KW = ['breaking','attack','attacked','attacks','explosion','explodes','exploded','sanctions','war','crisis','emergency','invasion','invaded','strike','strikes','coup','ceasefire','missile','nuclear','collapse','collapsed','assassination','assassinated','blockade','evacuate','evacuation','catastrophe','critical','crash','crashed','kills','killed','killing','dead','deaths','hostage','hostages','detained','arrested','shooting','shot','bombed','bombing','conflict','alert'];
+
+let breakingDismissed = false;
+
+function checkBreaking() {
+  if (breakingDismissed) return;
+  const prevLinks = loadPrevLinks();
+  const seenLinks = loadSeenLinks();
+  const matches = [];
+
+  console.log('[Breaking] prevLinks count:', prevLinks.size, 'seenLinks count:', seenLinks.size);
+
+  SOURCES.forEach(src => {
+    if (!isVisible(src.id)) return;
+    const data = store[src.id];
+    if (data?.state !== 'done') return;
+    let srcMatches = 0;
+    data.items.forEach(item => {
+      if (!item.link) return;
+      if (prevLinks.has(item.link) || seenLinks.has(item.link)) return;
+      const text = item.title.toLowerCase();
+      const hasKeyword = BREAKING_KW.some(k => {
+        const re = new RegExp(`\\b${k}\\b`, 'i');
+        return re.test(text);
+      });
+      if (hasKeyword) { matches.push({ ...item, srcName: src.name }); srcMatches++; }
+    });
+    if (srcMatches) console.log(`[Breaking] ${src.name}: ${srcMatches} matches`);
+  });
+
+  console.log('[Breaking] total matches:', matches.length);
+
+  // Sort newest first
+  matches.sort((a, b) => {
+    const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+    const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+    return db - da;
+  });
+
+  const bar = document.getElementById('breaking-bar');
+  if (matches.length === 0) { bar.classList.remove('visible'); return; }
+
+  const best = matches[0];
+  document.getElementById('breaking-link').textContent = best.title;
+  document.getElementById('breaking-link').href = best.link;
+  document.getElementById('breaking-source').textContent = best.srcName;
+
+  // Show/update count badge
+  const moreBtn = document.getElementById('breaking-more');
+  const dropdown = document.getElementById('breaking-dropdown');
+  if (matches.length > 1) {
+    moreBtn.textContent = `+${matches.length - 1} more`;
+    moreBtn.style.display = '';
+    dropdown.innerHTML = matches.slice(1).map(m => `
+      <div class="breaking-drop-item">
+        <a class="breaking-drop-title" href="${m.link.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;flex:1;line-height:1.4;">${m.title}</a>
+        <span class="breaking-drop-meta">${m.srcName}${m.pubDate ? ' · ' + relTime(m.pubDate) : ''}</span>
+        <button onclick="event.stopPropagation();markSeen('${m.link.replace(/'/g,"\'")}'); this.closest('.breaking-drop-item').style.opacity='0.4'; this.textContent='✓';" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;margin-left:8px;">✓ Seen</button>
+      </div>`).join('');
+  } else {
+    moreBtn.style.display = 'none';
+    dropdown.classList.remove('open');
+  }
+
+  bar.classList.add('visible');
+  bar.style.animation = 'none';
+  bar.offsetHeight;
+  bar.style.animation = '';
+}
+
+function toggleBreakingDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById('breaking-dropdown');
+  const bar = document.getElementById('breaking-bar');
+  const rect = bar.getBoundingClientRect();
+  // Always position relative to current viewport position of bar
+  dropdown.style.top = rect.bottom + 'px';
+  dropdown.classList.toggle('open');
+}
+
+// Keep dropdown anchored when scrolling
+window.addEventListener('scroll', () => {
+  const dropdown = document.getElementById('breaking-dropdown');
+  if (!dropdown.classList.contains('open')) return;
+  const bar = document.getElementById('breaking-bar');
+  const rect = bar.getBoundingClientRect();
+  dropdown.style.top = rect.bottom + 'px';
+}, { passive: true });
+
+function markSeenMain() {
+  const link = document.getElementById('breaking-link').href;
+  if (link && link !== '#') markSeen(link);
+}
+
+function dismissBreaking() {
+  breakingDismissed = true;
+  document.getElementById('breaking-bar').classList.remove('visible');
+  document.getElementById('breaking-dropdown').classList.remove('open');
+}
+
+
+// Close breaking dropdown on outside click
+document.addEventListener('click', e => {
+  const bar = document.getElementById('breaking-bar');
+  const dropdown = document.getElementById('breaking-dropdown');
+  const moreBtn = document.getElementById('breaking-more');
+  if (!bar.contains(e.target) && !dropdown.contains(e.target) && !moreBtn.contains(e.target)) {
+    dropdown.classList.remove('open');
+  }
+});
 
 // ── Story clustering ──
 
