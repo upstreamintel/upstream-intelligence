@@ -812,9 +812,15 @@ function toggleSource(id) {
   const vis = loadVisibility();
   vis[id] = !vis[id];
   saveVisibility(vis);
+  // Show/hide card directly — no grid rebuild, no async churn
+  const card = document.getElementById('card-' + id);
+  if (card) card.style.display = vis[id] === false ? 'none' : '';
   renderPanelList();
-  // Rebuild grid with new visibility
-  loadAll();
+  // Keep panel open
+  const panel = document.getElementById('sources-panel');
+  const btn = document.getElementById('manage-btn');
+  panel.classList.add('visible');
+  btn.classList.add('open');
 }
 
 function toggleAllSources() {
@@ -822,17 +828,23 @@ function toggleAllSources() {
   const anyOff = SOURCES.some(s => vis[s.id] === false);
   SOURCES.forEach(s => { vis[s.id] = anyOff; });
   saveVisibility(vis);
+  // Show/hide cards directly
+  SOURCES.forEach(s => {
+    const card = document.getElementById('card-' + s.id);
+    if (card) card.style.display = vis[s.id] === false ? 'none' : '';
+  });
   renderPanelList();
-  loadAll();
 }
 
 function renderPanelList() {
   const vis = loadVisibility();
   const list = document.getElementById('sources-panel-list');
   if (!list) return;
-  list.innerHTML = getOrderedSources().map(src => {
+  const order = loadOrder();
+  const allOrdered = order.map(id => SOURCES.find(s => s.id === id)).filter(Boolean);
+  list.innerHTML = allOrdered.map(src => {
     const on = vis[src.id] !== false;
-    return `<div class="source-row" onclick="toggleSource('${src.id}')">
+    return `<div class="source-row" onclick="event.stopPropagation();toggleSource('${src.id}')">
       <div class="source-row-dot" style="background:${src.color}"></div>
       <span class="source-row-name">${src.name}</span>
       <button class="src-toggle ${on ? 'on' : ''}" onclick="event.stopPropagation();toggleSource('${src.id}')">
@@ -854,6 +866,7 @@ function togglePanel() {
 document.addEventListener('click', e => {
   const panel = document.getElementById('sources-panel');
   const btn = document.getElementById('manage-btn');
+  if (!panel.classList.contains('visible')) return;
   if (!panel.contains(e.target) && !btn.contains(e.target)) {
     panel.classList.remove('visible');
     btn.classList.remove('open');
@@ -996,8 +1009,10 @@ function getOrderedSources() {
 
 function buildGrid() {
   const grid = document.getElementById('grid');
-  const ordered = getOrderedSources();
-  grid.innerHTML = ordered.map(src => `
+  const vis = loadVisibility();
+  const order = loadOrder();
+  const allOrdered = order.map(id => SOURCES.find(s => s.id === id)).filter(Boolean);
+  grid.innerHTML = allOrdered.map(src => `
     <div class="card" id="card-${src.id}" draggable="true" data-id="${src.id}">
       <div class="card-header">
         <div class="drag-handle"><span></span><span></span><span></span></div>
@@ -1007,14 +1022,16 @@ function buildGrid() {
         <a class="visit-link" href="${src.site}" target="_blank" rel="noopener">Visit ↗</a>
       </div>
       <div class="articles-wrap">
-        <div class="state-msg">Loading…</div>
+        <div class="state-msg">${vis[src.id] === false ? '' : 'Loading…'}</div>
       </div>
     </div>
   `).join('');
-  // Render bias badges
-  ordered.forEach(src => {
+  // Render bias badges and apply saved visibility
+  allOrdered.forEach(src => {
     const wrap = document.querySelector(`#card-${src.id} .bias-wrap`);
     if (wrap) renderBadge(src, wrap, getBiasLabel(src));
+    const card = document.getElementById('card-' + src.id);
+    if (card && vis[src.id] === false) card.style.display = 'none';
   });
   initDrag();
 }
@@ -1075,6 +1092,11 @@ function loadAll() {
   buildGrid();
   setDateDisplay();
   const ordered = getOrderedSources();
+  if (ordered.length === 0) {
+    btn.textContent = '↻ Refresh';
+    btn.classList.remove('spinning');
+    return;
+  }
   let pending = ordered.length;
   ordered.forEach((src, i) => {
     setTimeout(() => {
