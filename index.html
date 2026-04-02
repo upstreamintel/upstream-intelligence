@@ -1918,21 +1918,28 @@ async function fetchWeather() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const d = await res.json();
 
+    // Log full response so we can see exact structure if something goes wrong
+    console.log('[Weather] response:', JSON.stringify(d).slice(0, 300));
+
+    // Guard against missing fields — API occasionally returns partial data
+    if (!d.current || d.current.temperature_2m == null) throw new Error('Missing current data');
+    if (!d.daily   || !d.daily.temperature_2m_max)      throw new Error('Missing daily data');
+
     const temp   = Math.round(d.current.temperature_2m);
-    const code   = d.current.weather_code;
+    const code   = d.current.weather_code ?? 0;
     const hi     = Math.round(d.daily.temperature_2m_max[0]);
     const lo     = Math.round(d.daily.temperature_2m_min[0]);
-    const precip = d.daily.precipitation_probability_max[0];
+    const precip = d.daily.precipitation_probability_max?.[0] ?? 0;
 
-    document.getElementById('weather-icon').textContent    = weatherIcon(code);
-    document.getElementById('weather-temp').textContent    = `${temp}°F`;
-    document.getElementById('weather-hi-lo').textContent   = `H ${hi}° · L ${lo}°`;
-    document.getElementById('weather-precip').textContent  = precip > 0 ? `💧 ${precip}% precip` : '';
+    document.getElementById('weather-icon').textContent     = weatherIcon(code);
+    document.getElementById('weather-temp').textContent     = `${temp}°F`;
+    document.getElementById('weather-hi-lo').textContent    = `H ${hi}° · L ${lo}°`;
+    document.getElementById('weather-precip').textContent   = precip > 0 ? `💧 ${precip}% precip` : '';
     document.getElementById('weather-loc-name').textContent = loc.name;
   } catch(e) {
-    document.getElementById('weather-temp').textContent    = '—°';
-    document.getElementById('weather-hi-lo').textContent   = 'Unavailable';
-    console.warn('[Weather] fetch failed:', e);
+    document.getElementById('weather-temp').textContent     = '—°';
+    document.getElementById('weather-hi-lo').textContent    = 'Unavailable';
+    console.warn('[Weather] fetch failed:', e.message, e);
   }
 }
 
