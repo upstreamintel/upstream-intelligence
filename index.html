@@ -1874,7 +1874,7 @@ function initVerse() {
 // Default is Houston, TX. User can change via the popover — geocoding is done
 // via Open-Meteo's free geocoding API (no key required).
 
-const WEATHER_LOC_KEY = 'upstream_weather_loc';
+var WEATHER_LOC_KEY = 'upstream_weather_loc'; // var so it hoists — const would crash on early initWeather() call
 
 function loadWeatherLoc() {
   try {
