@@ -506,6 +506,48 @@
   .weather-precip { font-size: 11px; color: var(--accent); }
   @media (max-width: 600px) { .weather-widget { display: none; } }
 
+  /* ── Weather location popover ── */
+  .weather-widget { cursor: pointer; position: relative; }
+  .weather-widget:hover .weather-temp { text-decoration: underline dotted; }
+  .weather-popover {
+    display: none; position: absolute;
+    top: calc(100% + 10px); right: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    padding: 14px 16px; z-index: 300; min-width: 220px;
+  }
+  .weather-popover.open { display: block; }
+  .weather-pop-title {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 8px;
+  }
+  .weather-pop-row { display: flex; gap: 6px; align-items: center; }
+  .weather-pop-input {
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; flex: 1; outline: none;
+    background: var(--bg); color: var(--text-primary);
+    transition: border-color 0.15s;
+  }
+  .weather-pop-input:focus { border-color: var(--accent); }
+  .weather-pop-btn {
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 6px; padding: 5px 12px; cursor: pointer;
+    transition: opacity 0.15s; white-space: nowrap;
+  }
+  .weather-pop-btn:hover { opacity: 0.85; }
+  .weather-pop-status {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 7px; min-height: 14px;
+  }
+  .weather-pop-status.error { color: #C0392B; }
+  .weather-loc-name {
+    font-size: 10px; color: var(--text-muted);
+    margin-top: 2px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 140px;
+  }
+
   /* ── Bible verse bar ── */
   .verse-bar {
     background: #FDFBF7;
@@ -594,12 +636,23 @@
     <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" />
     <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">×</button>
   </div>
-  <div class="weather-widget" id="weather-widget" title="Houston, TX — Open-Meteo">
+  <div class="weather-widget" id="weather-widget" onclick="toggleWeatherPopover(event)" title="Click to change location">
     <span class="weather-icon" id="weather-icon">⋯</span>
     <div class="weather-detail">
       <span class="weather-temp" id="weather-temp">—°</span>
       <span class="weather-hi-lo" id="weather-hi-lo">H —° · L —°</span>
       <span class="weather-precip" id="weather-precip"></span>
+      <span class="weather-loc-name" id="weather-loc-name"></span>
+    </div>
+    <div class="weather-popover" id="weather-popover" onclick="event.stopPropagation()">
+      <div class="weather-pop-title">📍 Change location</div>
+      <div class="weather-pop-row">
+        <input class="weather-pop-input" id="weather-loc-input" type="text"
+          placeholder="City or zip code…"
+          onkeydown="if(event.key==='Enter')saveWeatherLocation()" />
+        <button class="weather-pop-btn" onclick="saveWeatherLocation()">Go</button>
+      </div>
+      <div class="weather-pop-status" id="weather-pop-status"></div>
     </div>
   </div>
 </div>
@@ -1816,32 +1869,52 @@ function initVerse() {
 // Houston, TX coordinates. Open-Meteo returns current conditions + daily hi/lo/precip
 // probability in a single free call. Refreshes every hour automatically.
 
-const WEATHER_LAT  = 29.7604;
-const WEATHER_LON  = -95.3698;
-const WEATHER_URL  =
-  `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}` +
-  `&current=temperature_2m,weather_code` +
-  `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
-  `&temperature_unit=fahrenheit&timezone=America%2FChicago&forecast_days=1`;
+// ── Weather widget ──
+// Location is stored in localStorage as { lat, lon, name }.
+// Default is Houston, TX. User can change via the popover — geocoding is done
+// via Open-Meteo's free geocoding API (no key required).
 
-// WMO weather code → emoji + short label
+const WEATHER_LOC_KEY = 'upstream_weather_loc';
+const WEATHER_DEFAULT = { lat: 29.7604, lon: -95.3698, name: 'Houston, TX' };
+
+function loadWeatherLoc() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WEATHER_LOC_KEY));
+    if (saved?.lat && saved?.lon) return saved;
+  } catch(e) {}
+  return WEATHER_DEFAULT;
+}
+
+function saveWeatherLoc(loc) {
+  try { localStorage.setItem(WEATHER_LOC_KEY, JSON.stringify(loc)); } catch(e) {}
+}
+
+function buildWeatherURL(lat, lon) {
+  return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+    `&temperature_unit=fahrenheit&timezone=auto&forecast_days=1`;
+}
+
+// WMO weather code → emoji
 function weatherIcon(code) {
-  if (code === 0)              return '☀️';
-  if (code <= 2)               return '⛅';
-  if (code === 3)              return '☁️';
-  if (code <= 49)              return '🌫️';  // fog / mist
-  if (code <= 57)              return '🌦️';  // drizzle
-  if (code <= 67)              return '🌧️';  // rain
-  if (code <= 77)              return '❄️';  // snow
-  if (code <= 82)              return '🌦️';  // showers
-  if (code <= 84)              return '🌨️';  // snow showers
-  if (code <= 99)              return '⛈️';  // thunderstorm
+  if (code === 0)    return '☀️';
+  if (code <= 2)     return '⛅';
+  if (code === 3)    return '☁️';
+  if (code <= 49)    return '🌫️';
+  if (code <= 57)    return '🌦️';
+  if (code <= 67)    return '🌧️';
+  if (code <= 77)    return '❄️';
+  if (code <= 82)    return '🌦️';
+  if (code <= 84)    return '🌨️';
+  if (code <= 99)    return '⛈️';
   return '🌡️';
 }
 
 async function fetchWeather() {
+  const loc = loadWeatherLoc();
   try {
-    const res = await fetch(WEATHER_URL, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(buildWeatherURL(loc.lat, loc.lon), { signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const d = await res.json();
 
@@ -1849,23 +1922,77 @@ async function fetchWeather() {
     const code   = d.current.weather_code;
     const hi     = Math.round(d.daily.temperature_2m_max[0]);
     const lo     = Math.round(d.daily.temperature_2m_min[0]);
-    const precip = d.daily.precipitation_probability_max[0]; // percent
+    const precip = d.daily.precipitation_probability_max[0];
 
-    document.getElementById('weather-icon').textContent  = weatherIcon(code);
-    document.getElementById('weather-temp').textContent  = `${temp}°F`;
-    document.getElementById('weather-hi-lo').textContent = `H ${hi}° · L ${lo}°`;
-    document.getElementById('weather-precip').textContent =
-      precip > 0 ? `💧 ${precip}% precip` : '';
+    document.getElementById('weather-icon').textContent    = weatherIcon(code);
+    document.getElementById('weather-temp').textContent    = `${temp}°F`;
+    document.getElementById('weather-hi-lo').textContent   = `H ${hi}° · L ${lo}°`;
+    document.getElementById('weather-precip').textContent  = precip > 0 ? `💧 ${precip}% precip` : '';
+    document.getElementById('weather-loc-name').textContent = loc.name;
   } catch(e) {
-    document.getElementById('weather-temp').textContent  = '—°';
-    document.getElementById('weather-hi-lo').textContent = 'Unavailable';
+    document.getElementById('weather-temp').textContent    = '—°';
+    document.getElementById('weather-hi-lo').textContent   = 'Unavailable';
     console.warn('[Weather] fetch failed:', e);
   }
 }
 
+// Geocode a city name or zip via Open-Meteo geocoding API
+async function geocodeLocation(query) {
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const d = await res.json();
+  if (!d.results?.length) throw new Error('Location not found');
+  const r = d.results[0];
+  const name = [r.name, r.admin1, r.country_code].filter(Boolean).join(', ');
+  return { lat: r.latitude, lon: r.longitude, name };
+}
+
+async function saveWeatherLocation() {
+  const input = document.getElementById('weather-loc-input');
+  const status = document.getElementById('weather-pop-status');
+  const query = input.value.trim();
+  if (!query) return;
+
+  status.className = 'weather-pop-status';
+  status.textContent = 'Searching…';
+
+  try {
+    const loc = await geocodeLocation(query);
+    saveWeatherLoc(loc);
+    status.textContent = `✓ Set to ${loc.name}`;
+    input.value = '';
+    await fetchWeather();
+    // Close popover after short delay
+    setTimeout(() => {
+      document.getElementById('weather-popover').classList.remove('open');
+      status.textContent = '';
+    }, 1200);
+  } catch(e) {
+    status.className = 'weather-pop-status error';
+    status.textContent = 'Location not found — try a city name';
+  }
+}
+
+function toggleWeatherPopover(e) {
+  e.stopPropagation();
+  const pop = document.getElementById('weather-popover');
+  const isOpen = pop.classList.toggle('open');
+  if (isOpen) {
+    const input = document.getElementById('weather-loc-input');
+    const loc = loadWeatherLoc();
+    input.placeholder = loc.name;
+    setTimeout(() => input.focus(), 50);
+  }
+}
+
+// Close popover when clicking outside
+document.addEventListener('click', () => {
+  document.getElementById('weather-popover')?.classList.remove('open');
+});
+
 function initWeather() {
   fetchWeather();
-  // Refresh every hour — conditions don't change faster than that in practice
   setInterval(fetchWeather, 60 * 60 * 1000);
 }</script>
 </body>
