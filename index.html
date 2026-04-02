@@ -487,6 +487,52 @@
     background: #fff; transition: transform 0.2s; display: block;
   }
   .src-toggle.on .src-toggle-knob { transform: translateX(12px); }
+
+  /* ── Weather widget ── */
+  .weather-widget {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; color: var(--text-secondary);
+    white-space: nowrap; margin-left: auto;
+    padding-left: 16px;
+    border-left: 1px solid var(--border-light);
+  }
+  .weather-temp {
+    font-size: 16px; font-weight: 500;
+    color: var(--text-primary); line-height: 1;
+  }
+  .weather-icon { font-size: 16px; line-height: 1; }
+  .weather-detail { display: flex; flex-direction: column; gap: 1px; }
+  .weather-hi-lo { font-size: 11px; color: var(--text-muted); }
+  .weather-precip { font-size: 11px; color: var(--accent); }
+  @media (max-width: 600px) { .weather-widget { display: none; } }
+
+  /* ── Bible verse bar ── */
+  .verse-bar {
+    background: #FDFBF7;
+    border-bottom: 1px solid var(--border-light);
+    padding: 10px 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .verse-label {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
+  }
+  .verse-text {
+    font-family: 'Spectral', serif;
+    font-size: 13px; color: var(--text-secondary);
+    line-height: 1.55;
+    font-style: italic;
+  }
+  .verse-ref {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; color: var(--text-muted);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  @media (max-width: 600px) { .verse-bar { padding: 9px 16px; } }
 </style>
 </head>
 <body>
@@ -526,6 +572,12 @@
   </div>
 </div>
 
+<div class="verse-bar" id="verse-bar">
+  <span class="verse-label">✦ Verse of the Day</span>
+  <span class="verse-text" id="verse-text">Loading…</span>
+  <span class="verse-ref" id="verse-ref"></span>
+</div>
+
 <div class="filter-bar">
   <span class="filter-label">Filter</span>
   <button class="pill active" data-f="all"      onclick="setFilter('all')">All</button>
@@ -541,6 +593,14 @@
     </svg>
     <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" />
     <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">×</button>
+  </div>
+  <div class="weather-widget" id="weather-widget" title="Houston, TX — Open-Meteo">
+    <span class="weather-icon" id="weather-icon">⋯</span>
+    <div class="weather-detail">
+      <span class="weather-temp" id="weather-temp">—°</span>
+      <span class="weather-hi-lo" id="weather-hi-lo">H —° · L —°</span>
+      <span class="weather-precip" id="weather-precip"></span>
+    </div>
   </div>
 </div>
 
@@ -657,6 +717,30 @@ const SOURCES = [
     url:'https://www.worldoil.com/rss?feed=topic:eagle+ford',
     fallback:'https://www.worldoil.com/rss?feed=news',
     bias:'Industry / Trade', biasColor:'#4A7C3F'
+  },
+  {
+    id:'espn', name:'ESPN', color:'#CC0000', site:'https://www.espn.com',
+    url:'https://www.espn.com/espn/rss/news',
+    fallback:'https://feeds.feedburner.com/espn/news',
+    bias:'Sports', biasColor:'#CC0000'
+  },
+  {
+    id:'hc', name:'Houston Chronicle', color:'#00529B', site:'https://www.houstonchronicle.com',
+    url:'https://www.chron.com/rss/feed/News-270.php',
+    fallback:'https://www.chron.com/rss/',
+    bias:'Local News', biasColor:'#4A7C8B'
+  },
+  {
+    id:'abc13', name:'ABC13 Houston', color:'#0B5EA8', site:'https://abc13.com',
+    url:'https://abc13.com/feed',
+    fallback:'https://abc13.com/feed/',
+    bias:'Local News', biasColor:'#4A7C8B'
+  },
+  {
+    id:'kris6', name:'KRIS 6 News (Corpus Christi)', color:'#1A6B3A', site:'https://www.kristv.com',
+    url:'https://www.kristv.com/news.rss',
+    fallback:'https://www.kristv.com/feed',
+    bias:'Local News', biasColor:'#4A7C8B'
   },
 ];
 
@@ -1670,6 +1754,119 @@ function renderClusters() {
 
 loadAll();
 initLayout();
-</script>
+initWeather();
+initVerse();
+
+// ── Bible Verse of the Day (Bible Gateway, NIV) ──
+// Uses the Bible Gateway JSON endpoint — no API key required.
+// Displays once per day; caches the verse in localStorage so the bar
+// renders instantly on subsequent loads within the same calendar day.
+
+const VERSE_KEY = 'upstream_verse';
+
+async function fetchVerse() {
+  try {
+    // labs.bible.org: free, no API key, CORS-enabled, returns NIV-equivalent (NET) VOTD as JSON
+    const res = await fetch(
+      'https://labs.bible.org/api/?passage=votd&type=json',
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    // Response is an array of verse objects: [{bookname, chapter, verse, text}]
+    const verses = Array.isArray(d) ? d : [d];
+    if (!verses.length || !verses[0].text) throw new Error('empty');
+    const text = verses.map(v => v.text.replace(/<[^>]+>/g, '').trim()).join(' ');
+    const first = verses[0];
+    const last  = verses[verses.length - 1];
+    const ref   = first.chapter === last.chapter && first.verse === last.verse
+      ? `${first.bookname} ${first.chapter}:${first.verse}`
+      : `${first.bookname} ${first.chapter}:${first.verse}–${last.verse}`;
+
+    // Cache with today's date so it refreshes each new day
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(VERSE_KEY, JSON.stringify({ text, ref, date: today }));
+    renderVerse(text, ref);
+  } catch(e) {
+    // Leave whatever is currently displayed (cached or placeholder)
+    console.warn('[Verse] fetch failed:', e);
+    document.getElementById('verse-text').textContent = 'Verse unavailable';
+  }
+}
+
+function renderVerse(text, ref) {
+  document.getElementById('verse-text').textContent = text;
+  document.getElementById('verse-ref').textContent  = ref;
+}
+
+function initVerse() {
+  // Check cache first — if today's verse is already stored, render immediately
+  try {
+    const cached = JSON.parse(localStorage.getItem(VERSE_KEY));
+    const today  = new Date().toISOString().slice(0, 10);
+    if (cached?.date === today && cached.text) {
+      renderVerse(cached.text, cached.ref);
+      return; // No fetch needed
+    }
+  } catch(e) {}
+  fetchVerse();
+}
+
+// ── Weather widget (Open-Meteo, no API key required) ──
+// Houston, TX coordinates. Open-Meteo returns current conditions + daily hi/lo/precip
+// probability in a single free call. Refreshes every hour automatically.
+
+const WEATHER_LAT  = 29.7604;
+const WEATHER_LON  = -95.3698;
+const WEATHER_URL  =
+  `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}` +
+  `&current=temperature_2m,weathercode` +
+  `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+  `&temperature_unit=fahrenheit&timezone=America%2FChicago&forecast_days=1`;
+
+// WMO weather code → emoji + short label
+function weatherIcon(code) {
+  if (code === 0)              return '☀️';
+  if (code <= 2)               return '⛅';
+  if (code === 3)              return '☁️';
+  if (code <= 49)              return '🌫️';  // fog / mist
+  if (code <= 57)              return '🌦️';  // drizzle
+  if (code <= 67)              return '🌧️';  // rain
+  if (code <= 77)              return '❄️';  // snow
+  if (code <= 82)              return '🌦️';  // showers
+  if (code <= 84)              return '🌨️';  // snow showers
+  if (code <= 99)              return '⛈️';  // thunderstorm
+  return '🌡️';
+}
+
+async function fetchWeather() {
+  try {
+    const res = await fetch(WEATHER_URL, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+
+    const temp   = Math.round(d.current.temperature_2m);
+    const code   = d.current.weathercode;
+    const hi     = Math.round(d.daily.temperature_2m_max[0]);
+    const lo     = Math.round(d.daily.temperature_2m_min[0]);
+    const precip = d.daily.precipitation_probability_max[0]; // percent
+
+    document.getElementById('weather-icon').textContent  = weatherIcon(code);
+    document.getElementById('weather-temp').textContent  = `${temp}°F`;
+    document.getElementById('weather-hi-lo').textContent = `H ${hi}° · L ${lo}°`;
+    document.getElementById('weather-precip').textContent =
+      precip > 0 ? `💧 ${precip}% precip` : '';
+  } catch(e) {
+    document.getElementById('weather-temp').textContent  = '—°';
+    document.getElementById('weather-hi-lo').textContent = 'Unavailable';
+    console.warn('[Weather] fetch failed:', e);
+  }
+}
+
+function initWeather() {
+  fetchWeather();
+  // Refresh every hour — conditions don't change faster than that in practice
+  setInterval(fetchWeather, 60 * 60 * 1000);
+}</script>
 </body>
 </html>
