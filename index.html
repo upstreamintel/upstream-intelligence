@@ -1820,7 +1820,7 @@ const WEATHER_LAT  = 29.7604;
 const WEATHER_LON  = -95.3698;
 const WEATHER_URL  =
   `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}` +
-  `&current=temperature_2m,weathercode` +
+  `&current=temperature_2m,weather_code` +
   `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
   `&temperature_unit=fahrenheit&timezone=America%2FChicago&forecast_days=1`;
 
@@ -1846,7 +1846,7 @@ async function fetchWeather() {
     const d = await res.json();
 
     const temp   = Math.round(d.current.temperature_2m);
-    const code   = d.current.weathercode;
+    const code   = d.current.weather_code;
     const hi     = Math.round(d.daily.temperature_2m_max[0]);
     const lo     = Math.round(d.daily.temperature_2m_min[0]);
     const precip = d.daily.precipitation_probability_max[0]; // percent
