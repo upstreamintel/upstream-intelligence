@@ -672,28 +672,65 @@ let searchQuery = '';
 let store = {};   // { id: { state: 'loading'|'done'|'error', items: [] } }
 
 // ── Breaking news seen/new tracking ──
+//
+// Two independent localStorage buckets control what surfaces in the breaking bar:
+//
+//   SEEN_KEY  — articles the user explicitly dismissed via "✓ Seen".
+//               Stored as { url: timestamp } so entries auto-expire after 48 hours,
+//               preventing permanent suppression of articles that reappear or share a URL.
+//
+//   PREV_KEY  — snapshot of every article link present at the END of the last full
+//               refresh cycle. On the next refresh, any link already in this set is
+//               treated as "not new" and filtered out of breaking candidates.
+//               Written once in batch (in loadAll) after ALL feeds settle — never
+//               per-feed — so sibling feeds loading in parallel can't poison each
+//               other's novelty check during the same refresh cycle.
+
 const SEEN_KEY = 'upstream_seen_links';
 const PREV_KEY = 'upstream_prev_links';
 
 function loadSeenLinks() {
-  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)) || []); } catch(e) { return new Set(); }
+  try {
+    const raw = JSON.parse(localStorage.getItem(SEEN_KEY));
+    if (!raw) return new Set();
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000; // 48-hour TTL
+
+    // One-time migration: old format was a plain string[], new format is {link: timestamp}.
+    // Stamp migrated entries with now so they survive this session before expiring normally.
+    if (Array.isArray(raw)) {
+      const migrated = {};
+      raw.forEach(link => { migrated[link] = Date.now(); });
+      localStorage.setItem(SEEN_KEY, JSON.stringify(migrated));
+      return new Set(raw);
+    }
+
+    // Prune expired entries on every load and re-persist the trimmed set
+    const fresh = {};
+    Object.entries(raw).forEach(([link, ts]) => { if (ts > cutoff) fresh[link] = ts; });
+    localStorage.setItem(SEEN_KEY, JSON.stringify(fresh));
+    return new Set(Object.keys(fresh));
+  } catch(e) { return new Set(); }
 }
+
 function saveSeenLinks(s) {
-  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...s])); } catch(e) {}
+  // Merge into existing store so we don't overwrite timestamps for links already recorded
+  try {
+    let existing = {};
+    try { const r = JSON.parse(localStorage.getItem(SEEN_KEY)); if (r && !Array.isArray(r)) existing = r; } catch(e) {}
+    const now = Date.now();
+    s.forEach(link => { if (!existing[link]) existing[link] = now; });
+    localStorage.setItem(SEEN_KEY, JSON.stringify(existing));
+  } catch(e) {}
 }
+
+// prevLinks is a plain Set<string> — no TTL needed because it's cleared and
+// rewritten from scratch on every refresh (see loadAll).
 function loadPrevLinks() {
   try { return new Set(JSON.parse(localStorage.getItem(PREV_KEY)) || []); } catch(e) { return new Set(); }
 }
 function savePrevLinks(s) {
   try { localStorage.setItem(PREV_KEY, JSON.stringify([...s])); } catch(e) {}
 }
-function markSeen(link) {
-  const seen = loadSeenLinks();
-  seen.add(link);
-  saveSeenLinks(seen);
-  checkBreaking();
-}
-
 // Three independent proxy strategies tried in order per feed
 const PROXY_STRATEGIES = [
   // 1. rss2json — clean URL only, no extra params (unknown params break free tier)
@@ -835,12 +872,11 @@ async function fetchFeed(src) {
         store[src.id] = { state: 'done', items };
         renderCard(src);
         updateTotalCount();
-        // Check breaking BEFORE saving to prevLinks so new articles are detected
+        // Run the breaking check as each feed arrives so the bar appears as early
+        // as possible. prevLinks is NOT saved here — that happens once in loadAll
+        // after every feed settles, preventing feeds that finish early from marking
+        // their own articles as "old" before later feeds have had a chance to check.
         checkBreaking();
-        // Now save links as previously seen for next refresh
-        const prev = loadPrevLinks();
-        items.forEach(i => { if (i.link) prev.add(i.link); });
-        savePrevLinks(prev);
         return;
       } catch(e) { /* next strategy */ }
     }
@@ -1353,6 +1389,18 @@ function loadAll() {
         if (pending === 0) {
           btn.textContent = '↻ Refresh';
           btn.classList.remove('spinning');
+
+          // All feeds have settled — snapshot every article link into prevLinks.
+          // This is intentionally deferred until here: writing prevLinks per-feed
+          // caused a race where Feed A's links were "prev" by the time Feed B's
+          // checkBreaking() ran, making those articles invisible to the bar even
+          // though they were genuinely new this session.
+          const allLinks = new Set();
+          SOURCES.forEach(s => {
+            const d = store[s.id];
+            if (d?.state === 'done') d.items.forEach(i => { if (i.link) allLinks.add(i.link); });
+          });
+          savePrevLinks(allLinks);
         }
       });
     }, i < 3 ? 0 : (i - 2) * 150);
@@ -1360,11 +1408,65 @@ function loadAll() {
 }
 
 // ── Breaking news bar ──
+//
+// Flow:
+//   1. checkBreaking()    — full scan of all loaded feeds; builds a sorted match queue
+//   2. renderBreakingBar() — pure DOM update from the current breakingMatches queue
+//   3. markSeen(link)     — splices one item from the queue, re-renders without re-scanning
+//
+// Separating scan (checkBreaking) from render (renderBreakingBar) lets markSeen advance
+// to the next headline instantly — no refresh needed, no re-querying localStorage.
 
 const BREAKING_KW = ['breaking','attack','attacked','attacks','explosion','explodes','exploded','sanctions','war','crisis','emergency','invasion','invaded','strike','strikes','coup','ceasefire','missile','nuclear','collapse','collapsed','assassination','assassinated','blockade','evacuate','evacuation','catastrophe','critical','crash','crashed','kills','killed','killing','dead','deaths','hostage','hostages','detained','arrested','shooting','shot','bombed','bombing','conflict','alert'];
 
 let breakingDismissed = false;
+// In-memory queue of current breaking matches, newest first.
+// Populated by checkBreaking(); drained by markSeen() as the user dismisses headlines.
+let breakingMatches = [];
 
+// Pure render — updates the bar DOM from whatever is currently in breakingMatches.
+// Called by both checkBreaking() (after a full scan) and markSeen() (after a splice).
+function renderBreakingBar() {
+  const bar = document.getElementById('breaking-bar');
+  if (breakingDismissed || breakingMatches.length === 0) {
+    bar.classList.remove('visible');
+    document.getElementById('breaking-dropdown').classList.remove('open');
+    return;
+  }
+
+  const best = breakingMatches[0];
+  document.getElementById('breaking-link').textContent = best.title;
+  document.getElementById('breaking-link').href = best.link;
+  document.getElementById('breaking-source').textContent = best.srcName;
+
+  const moreBtn = document.getElementById('breaking-more');
+  const dropdown = document.getElementById('breaking-dropdown');
+  if (breakingMatches.length > 1) {
+    moreBtn.textContent = `+${breakingMatches.length - 1} more`;
+    moreBtn.style.display = '';
+    dropdown.innerHTML = breakingMatches.slice(1).map(m => `
+      <div class="breaking-drop-item">
+        <a class="breaking-drop-title" href="${m.link.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;flex:1;line-height:1.4;">${m.title}</a>
+        <span class="breaking-drop-meta">${m.srcName}${m.pubDate ? ' · ' + relTime(m.pubDate) : ''}</span>
+        <button onclick="event.stopPropagation();markSeen('${m.link.replace(/'/g,"\'")}'); this.closest('.breaking-drop-item').style.opacity='0.4'; this.textContent='✓';" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;margin-left:8px;">✓ Seen</button>
+      </div>`).join('');
+  } else {
+    moreBtn.style.display = 'none';
+    dropdown.classList.remove('open');
+  }
+
+  bar.classList.add('visible');
+  // Force reflow to restart the pulse animation each time the bar updates
+  bar.style.animation = 'none';
+  bar.offsetHeight;
+  bar.style.animation = '';
+}
+
+// Full scan — walks all loaded feeds and finds articles that are:
+//   • not in prevLinks  (i.e. genuinely new since the last refresh)
+//   • not in seenLinks  (i.e. not manually dismissed by the user)
+//   • contain a breaking keyword in the title
+// Results are sorted newest-first and stored in breakingMatches, then rendered.
 function checkBreaking() {
   if (breakingDismissed) return;
   const prevLinks = loadPrevLinks();
@@ -1393,42 +1495,14 @@ function checkBreaking() {
 
   console.log('[Breaking] total matches:', matches.length);
 
-  // Sort newest first
   matches.sort((a, b) => {
     const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
     const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
     return db - da;
   });
 
-  const bar = document.getElementById('breaking-bar');
-  if (matches.length === 0) { bar.classList.remove('visible'); return; }
-
-  const best = matches[0];
-  document.getElementById('breaking-link').textContent = best.title;
-  document.getElementById('breaking-link').href = best.link;
-  document.getElementById('breaking-source').textContent = best.srcName;
-
-  // Show/update count badge
-  const moreBtn = document.getElementById('breaking-more');
-  const dropdown = document.getElementById('breaking-dropdown');
-  if (matches.length > 1) {
-    moreBtn.textContent = `+${matches.length - 1} more`;
-    moreBtn.style.display = '';
-    dropdown.innerHTML = matches.slice(1).map(m => `
-      <div class="breaking-drop-item">
-        <a class="breaking-drop-title" href="${m.link.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;flex:1;line-height:1.4;">${m.title}</a>
-        <span class="breaking-drop-meta">${m.srcName}${m.pubDate ? ' · ' + relTime(m.pubDate) : ''}</span>
-        <button onclick="event.stopPropagation();markSeen('${m.link.replace(/'/g,"\'")}'); this.closest('.breaking-drop-item').style.opacity='0.4'; this.textContent='✓';" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;margin-left:8px;">✓ Seen</button>
-      </div>`).join('');
-  } else {
-    moreBtn.style.display = 'none';
-    dropdown.classList.remove('open');
-  }
-
-  bar.classList.add('visible');
-  bar.style.animation = 'none';
-  bar.offsetHeight;
-  bar.style.animation = '';
+  breakingMatches = matches;
+  renderBreakingBar();
 }
 
 function toggleBreakingDropdown(e) {
@@ -1450,11 +1524,25 @@ window.addEventListener('scroll', () => {
   dropdown.style.top = rect.bottom + 'px';
 }, { passive: true });
 
-function markSeenMain() {
-  const link = document.getElementById('breaking-link').href;
-  if (link && link !== '#') markSeen(link);
+// Persists a link to seenLinks, then splices it from the in-memory queue and
+// re-renders. The next headline promotes instantly — no full re-scan, no refresh.
+function markSeen(link) {
+  const seen = loadSeenLinks();
+  seen.add(link);
+  saveSeenLinks(seen);
+  breakingMatches = breakingMatches.filter(m => m.link !== link);
+  renderBreakingBar();
 }
 
+// "✓ Seen" on the main bar headline — reads the href directly from the DOM anchor.
+// Guards against window.location.href in case the link hasn't been set yet.
+function markSeenMain() {
+  const link = document.getElementById('breaking-link').href;
+  if (link && link !== window.location.href) markSeen(link);
+}
+
+// Hides the bar for this session only — does not persist to seenLinks,
+// so the same articles will surface again on the next full refresh.
 function dismissBreaking() {
   breakingDismissed = true;
   document.getElementById('breaking-bar').classList.remove('visible');
