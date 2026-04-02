@@ -795,6 +795,7 @@ const SOURCES = [
     fallback:'https://www.kristv.com/feed',
     bias:'Local News', biasColor:'#4A7C8B'
   },
+
 ];
 
 const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat'];
@@ -1698,8 +1699,30 @@ document.addEventListener('click', e => {
 });
 
 // ── Story clustering ──
+//
+// Identifies stories covered by 3+ sources and groups them into topic cards.
+// Key design decisions:
+//   - Jaccard threshold 0.25 (up from 0.15) for tighter, less duplicate clusters
+//   - Extended stop words include common news verbs (warns, urges, hits, etc.)
+//     so they don't pollute token overlap and create false matches
+//   - Post-clustering merge pass combines clusters whose top tokens overlap ≥50%,
+//     eliminating near-duplicate cards like "Iran · Trump · Future" vs "Iran · Trump · Threats"
+//   - Cluster title uses the most-recent headline text rather than word-frequency
+//     labels, which is more readable and specific
 
-const STOP_WORDS = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','by','from','as','is','was','are','were','be','been','has','have','had','will','would','could','should','may','might','that','this','these','those','its','it','his','her','their','our','says','say','said','after','over','into','about','up','out','than','so','not','no','more','new','us','un','eu']);
+const STOP_WORDS = new Set([
+  // Articles, conjunctions, prepositions, pronouns — pure grammar words
+  'the','a','an','and','or','but','in','on','at','to','for','of','with','by',
+  'from','as','is','was','are','were','be','been','has','have','had','will',
+  'would','could','should','may','might','that','this','these','those','its',
+  'it','his','her','their','our','over','into','about','up','out','than','so',
+  'not','no','us','un','eu','also','just','even','still','again','here','there',
+  'within','ahead','before','since','while','between','amid',
+  // News attribution verbs — appear in almost every headline, zero topical signal
+  'says','say','said','warns','warn','urged','urges','urge','calls','call',
+  'told','tell','shows','show','reports','report','claims','claim','according',
+  'announces','announced',
+]);
 
 function tokenize(title) {
   return title.toLowerCase()
@@ -1712,6 +1735,19 @@ function jaccard(setA, setB) {
   const intersection = new Set([...setA].filter(x => setB.has(x)));
   const union = new Set([...setA, ...setB]);
   return union.size === 0 ? 0 : intersection.size / union.size;
+}
+
+// Returns the top N most frequent tokens across a cluster group
+function topTokens(group, n = 5) {
+  const freq = {};
+  group.forEach(a => { a.tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; }); });
+  return new Set(
+    Object.entries(freq)
+      .filter(([, c]) => c >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, n)
+      .map(([w]) => w)
+  );
 }
 
 function buildClusters() {
@@ -1732,13 +1768,14 @@ function buildClusters() {
   const used = new Set();
   const clusters = [];
 
+  // Phase 1: initial greedy clustering with tighter Jaccard threshold (0.25)
   for (let i = 0; i < tokenized.length; i++) {
     if (used.has(i)) continue;
     const group = [tokenized[i]];
     used.add(i);
     for (let j = i + 1; j < tokenized.length; j++) {
       if (used.has(j)) continue;
-      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.15);
+      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.16);
       if (similar) {
         const alreadyHasSrc = group.some(g => g.srcId === tokenized[j].srcId);
         if (!alreadyHasSrc) { group.push(tokenized[j]); used.add(j); }
@@ -1747,25 +1784,52 @@ function buildClusters() {
     if (group.length >= 3) clusters.push(group);
   }
 
-  clusters.sort((a, b) => {
+  // Phase 2: merge clusters whose top-5 tokens overlap by 50%+ (Jaccard >= 0.5)
+  // This collapses near-duplicate cards that slipped through phase 1
+  const merged = new Set();
+  const mergedClusters = [];
+  for (let i = 0; i < clusters.length; i++) {
+    if (merged.has(i)) continue;
+    const groupA = clusters[i];
+    const tokA = topTokens(groupA);
+    for (let j = i + 1; j < clusters.length; j++) {
+      if (merged.has(j)) continue;
+      const tokB = topTokens(clusters[j]);
+      const overlap = jaccard(tokA, tokB);
+      if (overlap >= 0.6) {
+        // Merge B into A, deduplicating by source
+        clusters[j].forEach(art => {
+          if (!groupA.some(a => a.srcId === art.srcId)) groupA.push(art);
+        });
+        merged.add(j);
+      }
+    }
+    mergedClusters.push(groupA);
+  }
+
+  // Sort by source count desc, then by most recent article
+  mergedClusters.sort((a, b) => {
     if (b.length !== a.length) return b.length - a.length;
     const latestA = Math.max(...a.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
     const latestB = Math.max(...b.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
     return latestB - latestA;
   });
 
-  return clusters.slice(0, 8);
+  return mergedClusters.slice(0, 8);
 }
 
+// Use the most recent article's headline as the cluster title — more readable
+// and specific than the word-frequency label it replaces
 function clusterTopic(group) {
-  const freq = {};
-  group.forEach(a => { a.tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; }); });
-  const top = Object.entries(freq)
-    .filter(([, c]) => c >= 2)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([w]) => w.charAt(0).toUpperCase() + w.slice(1));
-  return top.length ? top.join(' · ') : group[0].title.slice(0, 40);
+  const withDate = group.filter(a => a.pubDate);
+  const mostRecent = withDate.length
+    ? withDate.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0]
+    : group[0];
+  // Trim to ~65 chars at a word boundary
+  const title = mostRecent.title;
+  if (title.length <= 65) return title;
+  const trimmed = title.slice(0, 65);
+  return trimmed.slice(0, trimmed.lastIndexOf(' ')) + '…';
 }
 
 function renderClusters() {
@@ -1781,9 +1845,11 @@ function renderClusters() {
 
   container.innerHTML = clusters.map(group => {
     const topic = clusterTopic(group);
-    const mostRecent = group.filter(a => a.pubDate).sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0];
-    const timeStr = mostRecent ? relTime(mostRecent.pubDate) : '';
-    const headlines = group.slice(0, 5).map(a => {
+    // Sort group newest-first before rendering headlines
+    const sorted = [...group].filter(a => a.pubDate).sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    const mostRecent = sorted[0] || group[0];
+    const timeStr = mostRecent?.pubDate ? relTime(mostRecent.pubDate) : '';
+    const headlines = sorted.slice(0, 5).map(a => {
       const safeLink = a.link.replace(/"/g, '&quot;');
       return `<a class="cluster-headline" href="${safeLink}" target="_blank" rel="noopener">
         <div class="cluster-dot" style="background:${a.srcColor}"></div>
