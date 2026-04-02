@@ -1878,15 +1878,24 @@ const WEATHER_LOC_KEY = 'upstream_weather_loc';
 
 function loadWeatherLoc() {
   try {
-    const saved = JSON.parse(localStorage.getItem(WEATHER_LOC_KEY));
+    const raw = localStorage.getItem(WEATHER_LOC_KEY);
+    console.log('[Weather] localStorage read:', raw);
+    const saved = JSON.parse(raw);
     if (saved?.lat && saved?.lon) return saved;
-  } catch(e) {}
+  } catch(e) { console.warn('[Weather] localStorage read error:', e); }
   // Default: Houston, TX
   return { lat: 29.7604, lon: -95.3698, name: 'Houston, TX' };
 }
 
 function saveWeatherLoc(loc) {
-  try { localStorage.setItem(WEATHER_LOC_KEY, JSON.stringify(loc)); } catch(e) {}
+  try {
+    localStorage.setItem(WEATHER_LOC_KEY, JSON.stringify(loc));
+    // Verify it actually saved
+    const verify = localStorage.getItem(WEATHER_LOC_KEY);
+    console.log('[Weather] localStorage write verify:', verify);
+  } catch(e) {
+    console.warn('[Weather] localStorage write failed:', e);
+  }
 }
 
 function buildWeatherURL(lat, lon) {
