@@ -1807,8 +1807,6 @@ function renderClusters() {
 
 loadAll();
 initLayout();
-initWeather();
-initVerse();
 
 // ── Bible Verse of the Day (Bible Gateway, NIV) ──
 // Uses the Bible Gateway JSON endpoint — no API key required.
@@ -2010,6 +2008,10 @@ document.addEventListener('click', () => {
 function initWeather() {
   fetchWeather();
   setInterval(fetchWeather, 60 * 60 * 1000);
-}</script>
+}
+
+// Init calls placed here so all functions and variables are fully declared first
+initWeather();
+initVerse();</script>
 </body>
 </html>
