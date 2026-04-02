@@ -1875,14 +1875,14 @@ function initVerse() {
 // via Open-Meteo's free geocoding API (no key required).
 
 const WEATHER_LOC_KEY = 'upstream_weather_loc';
-const WEATHER_DEFAULT = { lat: 29.7604, lon: -95.3698, name: 'Houston, TX' };
 
 function loadWeatherLoc() {
   try {
     const saved = JSON.parse(localStorage.getItem(WEATHER_LOC_KEY));
     if (saved?.lat && saved?.lon) return saved;
   } catch(e) {}
-  return WEATHER_DEFAULT;
+  // Default: Houston, TX
+  return { lat: 29.7604, lon: -95.3698, name: 'Houston, TX' };
 }
 
 function saveWeatherLoc(loc) {
