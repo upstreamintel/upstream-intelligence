@@ -461,43 +461,7 @@
     transition: background 0.15s;
   }
   .cluster-more-btn:hover { background: #d8e4f5; }
-  .cluster-analyze-btn {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 11px; color: var(--text-secondary);
-    background: none; border: 1px solid var(--border);
-    border-radius: 99px; padding: 3px 10px;
-    cursor: pointer; margin-top: 6px; margin-left: 6px;
-    transition: all 0.15s;
-  }
-  .cluster-analyze-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .cluster-analyze-btn.loading { opacity: 0.5; pointer-events: none; }
-  .cluster-analysis {
-    display: none;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-light);
-  }
-  .cluster-analysis.visible { display: block; }
-  .cluster-analysis-title {
-    font-size: 10px; font-weight: 500; text-transform: uppercase;
-    letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 10px;
-  }
-  .cluster-analysis-perspective {
-    margin-bottom: 10px; padding: 8px 10px;
-    border-left: 3px solid var(--border);
-    border-radius: 0 6px 6px 0;
-    background: var(--bg);
-  }
-  .cluster-analysis-bias {
-    font-size: 10px; font-weight: 500; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;
-  }
-  .cluster-analysis-text {
-    font-size: 12px; color: var(--text-secondary); line-height: 1.55;
-  }
-  .cluster-analysis-error {
-    font-size: 12px; color: #C0392B; margin-top: 8px;
-  }
+
 
   /* ── Manage sources panel ── */
   .manage-btn {
@@ -1901,103 +1865,6 @@ function clusterTopic(group) {
 }
 
 // Bias order for sorting headlines within a cluster — left to right on the spectrum
-// Global store for cluster article data — avoids unsafe inline JSON in onclick attributes
-const clusterDataStore = {};
-
-// ── Cluster perspective analysis (Anthropic API) ──
-// Sends the cluster headlines + bias labels to Claude and renders a per-perspective
-// narrative breakdown inline in the card. Cached per analysis panel so repeat
-// clicks don't re-fetch.
-
-async function analyzeCluster(analysisId, btn) {
-  const panel = document.getElementById(analysisId);
-  if (!panel) return;
-  const articles = clusterDataStore[analysisId] || [];
-
-  // Toggle off if already showing
-  if (panel.classList.contains('visible')) {
-    panel.classList.remove('visible');
-    btn.textContent = '⚡ Analyze perspectives';
-    return;
-  }
-
-  // If already populated (cached), just show it
-  if (panel.innerHTML.trim()) {
-    panel.classList.add('visible');
-    btn.textContent = '✕ Hide analysis';
-    return;
-  }
-
-  // Start loading
-  btn.classList.add('loading');
-  btn.textContent = 'Analyzing…';
-
-  // Build prompt from headlines grouped by bias
-  const grouped = {};
-  articles.forEach(a => {
-    const key = a.bias || 'Unknown';
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(`"${a.title}" (${a.source})`);
-  });
-
-  const headlineBlock = Object.entries(grouped)
-    .map(([bias, headlines]) => bias + ':\\n' + headlines.join('\\n'))
-    .join('\\n\\n');
-
-  const prompt = 'The following news headlines all cover the same story, grouped by the political bias of the source. Analyze how each perspective frames this story differently. For each bias group, write 1-2 sentences explaining their narrative angle, what they emphasize, and what they downplay or omit. Be concise and neutral in your analysis. Format your response as JSON like this: [{"bias": "Center-Left", "color": "#2C6B8B", "analysis": "..."}]. Return ONLY valid JSON, no markdown, no preamble.\\n\\nHeadlines:\\n' + headlineBlock;
-
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    if (!res.ok) throw new Error(`API error ${res.status}`);
-    const data = await res.json();
-    const raw = data.content?.[0]?.text || '';
-
-    // Parse JSON response
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const perspectives = JSON.parse(clean);
-
-    // Render
-    panel.innerHTML = `
-      <div class="cluster-analysis-title">📰 Narrative Analysis</div>
-      ${perspectives.map(p => `
-        <div class="cluster-analysis-perspective" style="border-left-color:${p.color || '#ccc'}">
-          <div class="cluster-analysis-bias">${p.bias}</div>
-          <div class="cluster-analysis-text">${p.analysis}</div>
-        </div>`).join('')}`;
-
-    panel.classList.add('visible');
-    btn.textContent = '✕ Hide analysis';
-  } catch(e) {
-    panel.innerHTML = `<div class="cluster-analysis-error">Analysis unavailable — ${e.message}</div>`;
-    panel.classList.add('visible');
-    btn.textContent = '✕ Hide analysis';
-    console.warn('[Analyze] failed:', e);
-  } finally {
-    btn.classList.remove('loading');
-  }
-}
-
-function toggleClusterMore(cardId, btn) {
-  const more = document.getElementById(cardId + '-more');
-  if (!more) return;
-  const isHidden = more.style.display === 'none';
-  more.style.display = isHidden ? '' : 'none';
-  const count = more.querySelectorAll('.cluster-headline').length;
-  btn.textContent = isHidden
-    ? 'Show less'
-    : `+${count} more perspective${count > 1 ? 's' : ''}`;
-}
-
 const BIAS_ORDER = {
   'Far Left': 0, 'Left': 1, 'Center-Left': 2, 'Center': 3, 'Aggregator': 3,
   'Center-Right': 4, 'Right': 5, 'Far Right': 6,
@@ -2009,21 +1876,19 @@ const BIAS_ORDER = {
 };
 
 function biasRank(bias) {
-  return BIAS_ORDER[bias] ?? 3; // default to center if unknown
+  return BIAS_ORDER[bias] ?? 3;
 }
 
-// Build the color spectrum bar showing which biases are covering the story
 function biasSpectrumHTML(group) {
   const sorted = [...group].sort((a, b) => biasRank(a.bias) - biasRank(b.bias));
   const segs = sorted.map(a => {
     const src = SOURCES.find(s => s.id === a.srcId);
     const color = src?.biasColor || a.srcColor;
-    return `<div class="cluster-spectrum-seg" style="background:${color};flex:1" title="${a.srcName} — ${src?.bias || 'Unknown'}"></div>`;
+    return '<div class="cluster-spectrum-seg" style="background:' + color + ';flex:1" title="' + a.srcName + ' — ' + (src?.bias || 'Unknown') + '"></div>';
   }).join('');
-  return `<div class="cluster-spectrum">${segs}</div>`;
+  return '<div class="cluster-spectrum">' + segs + '</div>';
 }
 
-// Build the coverage summary line — shows unique bias categories present
 function coverageBadgeHTML(group) {
   const seen = new Map();
   [...group]
@@ -2034,9 +1899,20 @@ function coverageBadgeHTML(group) {
     });
   if (seen.size <= 1) return '';
   const pips = [...seen.entries()].map(([label, color]) =>
-    `<span class="cluster-coverage-pip" style="background:${color}" title="${label}"></span>${label}`
+    '<span class="cluster-coverage-pip" style="background:' + color + '" title="' + label + '"></span>' + label
   ).join(' · ');
-  return `<div class="cluster-coverage">${pips}</div>`;
+  return '<div class="cluster-coverage">' + pips + '</div>';
+}
+
+function toggleClusterMore(cardId, btn) {
+  const more = document.getElementById(cardId + '-more');
+  if (!more) return;
+  const isHidden = more.style.display === 'none';
+  more.style.display = isHidden ? '' : 'none';
+  const count = more.querySelectorAll('.cluster-headline').length;
+  btn.textContent = isHidden
+    ? 'Show less'
+    : '+' + count + ' more perspective' + (count > 1 ? 's' : '');
 }
 
 function renderClusters() {
@@ -2048,109 +1924,77 @@ function renderClusters() {
   if (clusters.length === 0) { section.style.display = 'none'; return; }
 
   section.style.display = 'block';
-  sub.textContent = `${clusters.length} stories covered by 3+ sources`;
+  sub.textContent = clusters.length + ' stories covered by 3+ sources';
 
   container.innerHTML = clusters.map(group => {
     const topic = clusterTopic(group);
-
-    // Sort headlines by bias left→right so you read the same story across perspectives
     const biasSorted = [...group].sort((a, b) => biasRank(a.bias) - biasRank(b.bias));
-
     const mostRecent = [...group]
       .filter(a => a.pubDate)
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0] || group[0];
     const timeStr = mostRecent?.pubDate ? relTime(mostRecent.pubDate) : '';
-
+    const cardId = 'cluster-' + Math.random().toString(36).slice(2, 7);
     const VISIBLE = 5;
-    const makeHeadlineHTML = (a) => {
+
+    const makeHeadlineHTML = function(a) {
       const src = SOURCES.find(s => s.id === a.srcId);
       const biasLabel = src?.bias || '';
       const safeLink = a.link.replace(/"/g, '&quot;');
-      return `<a class="cluster-headline" href="${safeLink}" target="_blank" rel="noopener">
-        <div class="cluster-dot" style="background:${src?.biasColor || a.srcColor}"></div>
-        <div>
-          <div class="cluster-hl-text">${a.title}</div>
-          <div class="cluster-hl-source">${a.srcName}<span class="cluster-hl-bias"> · ${biasLabel}</span></div>
-        </div>
-      </a>`;
+      return '<a class="cluster-headline" href="' + safeLink + '" target="_blank" rel="noopener">' +
+        '<div class="cluster-dot" style="background:' + (src?.biasColor || a.srcColor) + '"></div>' +
+        '<div>' +
+        '<div class="cluster-hl-text">' + a.title + '</div>' +
+        '<div class="cluster-hl-source">' + a.srcName + '<span class="cluster-hl-bias"> · ' + biasLabel + '</span></div>' +
+        '</div>' +
+        '</a>';
     };
 
     const visibleHTML = biasSorted.slice(0, VISIBLE).map(makeHeadlineHTML).join('');
     const hiddenHTML  = biasSorted.slice(VISIBLE).map(makeHeadlineHTML).join('');
     const extraCount  = biasSorted.length - VISIBLE;
-    const cardId      = 'cluster-' + Math.random().toString(36).slice(2, 7);
 
-    const moreToggle = extraCount > 0 ? `
-      <div id="${cardId}-more" style="display:none">${hiddenHTML}</div>
-      <button class="cluster-more-btn" onclick="toggleClusterMore('${cardId}', this)">
-        +${extraCount} more perspective${extraCount > 1 ? 's' : ''}
-      </button>` : '';
+    const moreToggle = extraCount > 0
+      ? '<div id="' + cardId + '-more" style="display:none">' + hiddenHTML + '</div>' +
+        '<button class="cluster-more-btn" onclick="toggleClusterMore(\'' + cardId + '\', this)">+' + extraCount + ' more perspective' + (extraCount > 1 ? 's' : '') + '</button>'
+      : '';
 
-    const analysisId = 'analysis-' + cardId;
-
-    // Store article data in a global map keyed by analysisId to avoid
-    // fragile inline JSON serialization inside HTML onclick attributes
-    clusterDataStore[analysisId] = biasSorted.map(a => ({
-      title: a.title,
-      source: a.srcName,
-      bias: SOURCES.find(s => s.id === a.srcId)?.bias || ''
-    }));
-
-    return `<div class="cluster-card">
-      <div class="cluster-topic">${topic}</div>
-      <div class="cluster-meta">
-        <span class="cluster-source-count">${group.length} sources</span>
-        <span>${timeStr}</span>
-      </div>
-      ${biasSpectrumHTML(group)}
-      ${coverageBadgeHTML(group)}
-      <div class="cluster-headlines">${visibleHTML}${moreToggle}
-        <button class="cluster-analyze-btn" onclick="analyzeCluster('${analysisId}', this)">
-          ⚡ Analyze perspectives
-        </button>
-      </div>
-      <div class="cluster-analysis" id="${analysisId}"></div>
-    </div>`;
+    return '<div class="cluster-card">' +
+      '<div class="cluster-topic">' + topic + '</div>' +
+      '<div class="cluster-meta">' +
+        '<span class="cluster-source-count">' + group.length + ' sources</span>' +
+        '<span>' + timeStr + '</span>' +
+      '</div>' +
+      biasSpectrumHTML(group) +
+      coverageBadgeHTML(group) +
+      '<div class="cluster-headlines">' + visibleHTML + moreToggle + '</div>' +
+    '</div>';
   }).join('');
 }
 
 loadAll();
 initLayout();
-
-// ── Bible Verse of the Day (Bible Gateway, NIV) ──
-// Uses the Bible Gateway JSON endpoint — no API key required.
-// Displays once per day; caches the verse in localStorage so the bar
-// renders instantly on subsequent loads within the same calendar day.
-
+// ── Bible Verse of the Day (labs.bible.org, NET translation) ──
 const VERSE_KEY = 'upstream_verse';
 
 async function fetchVerse() {
   try {
-    // labs.bible.org: free, no API key, CORS-enabled, returns NIV-equivalent (NET) VOTD as JSON
-    const res = await fetch(
-      'https://labs.bible.org/api/?passage=votd&type=json',
-      { signal: AbortSignal.timeout(8000) }
-    );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch('https://labs.bible.org/api/?passage=votd&type=json', { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
-    // Response is an array of verse objects: [{bookname, chapter, verse, text}]
     const verses = Array.isArray(d) ? d : [d];
     if (!verses.length || !verses[0].text) throw new Error('empty');
     const text = verses.map(v => v.text.replace(/<[^>]+>/g, '').trim()).join(' ');
     const first = verses[0];
     const last  = verses[verses.length - 1];
-    const ref   = first.chapter === last.chapter && first.verse === last.verse
-      ? `${first.bookname} ${first.chapter}:${first.verse}`
-      : `${first.bookname} ${first.chapter}:${first.verse}–${last.verse}`;
-
-    // Cache with today's date so it refreshes each new day
+    const ref   = (first.chapter === last.chapter && first.verse === last.verse)
+      ? first.bookname + ' ' + first.chapter + ':' + first.verse
+      : first.bookname + ' ' + first.chapter + ':' + first.verse + '-' + last.verse;
     const today = new Date().toISOString().slice(0, 10);
     localStorage.setItem(VERSE_KEY, JSON.stringify({ text, ref, date: today }));
     renderVerse(text, ref);
   } catch(e) {
-    // Leave whatever is currently displayed (cached or placeholder)
-    console.warn('[Verse] fetch failed:', e);
     document.getElementById('verse-text').textContent = 'Verse unavailable';
+    console.warn('[Verse] fetch failed:', e);
   }
 }
 
@@ -2160,112 +2004,88 @@ function renderVerse(text, ref) {
 }
 
 function initVerse() {
-  // Check cache first — if today's verse is already stored, render immediately
   try {
     const cached = JSON.parse(localStorage.getItem(VERSE_KEY));
     const today  = new Date().toISOString().slice(0, 10);
-    if (cached?.date === today && cached.text) {
-      renderVerse(cached.text, cached.ref);
-      return; // No fetch needed
-    }
+    if (cached?.date === today && cached.text) { renderVerse(cached.text, cached.ref); return; }
   } catch(e) {}
   fetchVerse();
 }
 
-// ── Weather widget (Open-Meteo, no API key required) ──
-// Houston, TX coordinates. Open-Meteo returns current conditions + daily hi/lo/precip
-// probability in a single free call. Refreshes every hour automatically.
-
-// ── Weather widget ──
-// Location is stored in localStorage as { lat, lon, name }.
-// Default is Houston, TX. User can change via the popover — geocoding is done
-// via Open-Meteo's free geocoding API (no key required).
-
-var WEATHER_LOC_KEY = 'upstream_weather_loc'; // var so it hoists — const would crash on early initWeather() call
+// ── Weather widget (Open-Meteo) ──
+var WEATHER_LOC_KEY = 'upstream_weather_loc';
 
 function loadWeatherLoc() {
   try {
     const raw = localStorage.getItem(WEATHER_LOC_KEY);
     console.log('[Weather] localStorage read:', raw);
     const saved = JSON.parse(raw);
-    if (saved?.lat && saved?.lon) return saved;
+    if (saved && saved.lat && saved.lon) return saved;
   } catch(e) { console.warn('[Weather] localStorage read error:', e); }
-  // Default: Houston, TX
   return { lat: 29.7604, lon: -95.3698, name: 'Houston, TX' };
 }
 
 function saveWeatherLoc(loc) {
   try {
     localStorage.setItem(WEATHER_LOC_KEY, JSON.stringify(loc));
-    // Verify it actually saved
     const verify = localStorage.getItem(WEATHER_LOC_KEY);
     console.log('[Weather] localStorage write verify:', verify);
-  } catch(e) {
-    console.warn('[Weather] localStorage write failed:', e);
-  }
+  } catch(e) { console.warn('[Weather] localStorage write failed:', e); }
 }
 
 function buildWeatherURL(lat, lon) {
-  return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&current=temperature_2m,weather_code` +
-    `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
-    `&temperature_unit=fahrenheit&timezone=auto&forecast_days=1`;
+  return 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+    '&current=temperature_2m,weather_code' +
+    '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+    '&temperature_unit=fahrenheit&timezone=auto&forecast_days=1';
 }
 
-// WMO weather code → emoji
 function weatherIcon(code) {
-  if (code === 0)    return '☀️';
-  if (code <= 2)     return '⛅';
-  if (code === 3)    return '☁️';
-  if (code <= 49)    return '🌫️';
-  if (code <= 57)    return '🌦️';
-  if (code <= 67)    return '🌧️';
-  if (code <= 77)    return '❄️';
-  if (code <= 82)    return '🌦️';
-  if (code <= 84)    return '🌨️';
-  if (code <= 99)    return '⛈️';
-  return '🌡️';
+  if (code === 0)  return String.fromCodePoint(0x2600,0xFE0F);
+  if (code <= 2)   return String.fromCodePoint(0x26C5);
+  if (code === 3)  return String.fromCodePoint(0x2601,0xFE0F);
+  if (code <= 49)  return String.fromCodePoint(0x1F32B,0xFE0F);
+  if (code <= 57)  return String.fromCodePoint(0x1F326,0xFE0F);
+  if (code <= 67)  return String.fromCodePoint(0x1F327,0xFE0F);
+  if (code <= 77)  return String.fromCodePoint(0x2744,0xFE0F);
+  if (code <= 82)  return String.fromCodePoint(0x1F326,0xFE0F);
+  if (code <= 84)  return String.fromCodePoint(0x1F328,0xFE0F);
+  if (code <= 99)  return String.fromCodePoint(0x26C8,0xFE0F);
+  return String.fromCodePoint(0x1F321,0xFE0F);
 }
 
 async function fetchWeather() {
   const loc = loadWeatherLoc();
   try {
     const res = await fetch(buildWeatherURL(loc.lat, loc.lon), { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
-
-    // Log full response so we can see exact structure if something goes wrong
     console.log('[Weather] response:', JSON.stringify(d).slice(0, 300));
-
-    // Guard against missing fields — API occasionally returns partial data
     if (!d.current || d.current.temperature_2m == null) throw new Error('Missing current data');
     if (!d.daily   || !d.daily.temperature_2m_max)      throw new Error('Missing daily data');
-
     const temp   = Math.round(d.current.temperature_2m);
-    const code   = d.current.weather_code ?? 0;
+    const code   = d.current.weather_code != null ? d.current.weather_code : 0;
     const hi     = Math.round(d.daily.temperature_2m_max[0]);
     const lo     = Math.round(d.daily.temperature_2m_min[0]);
-    const precip = d.daily.precipitation_probability_max?.[0] ?? 0;
-
+    const precip = d.daily.precipitation_probability_max ? d.daily.precipitation_probability_max[0] : 0;
     document.getElementById('weather-icon').textContent     = weatherIcon(code);
-    document.getElementById('weather-temp').textContent     = `${temp}°F`;
-    document.getElementById('weather-hi-lo').textContent    = `H ${hi}° · L ${lo}°`;
-    document.getElementById('weather-precip').textContent   = precip > 0 ? `💧 ${precip}% precip` : '';
+    document.getElementById('weather-temp').textContent     = temp + '°F';
+    document.getElementById('weather-hi-lo').textContent    = 'H ' + hi + '° · L ' + lo + '°';
+    document.getElementById('weather-precip').textContent   = precip > 0 ? precip + '% precip' : '';
     document.getElementById('weather-loc-name').textContent = loc.name;
   } catch(e) {
-    document.getElementById('weather-temp').textContent     = '—°';
+    document.getElementById('weather-temp').textContent     = '--°';
     document.getElementById('weather-hi-lo').textContent    = 'Unavailable';
     console.warn('[Weather] fetch failed:', e.message, e);
   }
 }
 
-// Geocode a city name or zip via Open-Meteo geocoding API
 async function geocodeLocation(query) {
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+  const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(query) + '&count=1&language=en&format=json';
   const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   const d = await res.json();
-  if (!d.results?.length) throw new Error('Location not found');
+  if (!d.results || !d.results.length) throw new Error('Location not found');
   const r = d.results[0];
   const name = [r.name, r.admin1, r.country_code].filter(Boolean).join(', ');
   return { lat: r.latitude, lon: r.longitude, name };
@@ -2276,24 +2096,21 @@ async function saveWeatherLocation() {
   const status = document.getElementById('weather-pop-status');
   const query = input.value.trim();
   if (!query) return;
-
   status.className = 'weather-pop-status';
-  status.textContent = 'Searching…';
-
+  status.textContent = 'Searching...';
   try {
     const loc = await geocodeLocation(query);
     saveWeatherLoc(loc);
-    status.textContent = `✓ Set to ${loc.name}`;
+    status.textContent = 'Set to ' + loc.name;
     input.value = '';
     await fetchWeather();
-    // Close popover after short delay
-    setTimeout(() => {
+    setTimeout(function() {
       document.getElementById('weather-popover').classList.remove('open');
       status.textContent = '';
     }, 1200);
   } catch(e) {
     status.className = 'weather-pop-status error';
-    status.textContent = 'Location not found — try a city name';
+    status.textContent = 'Location not found - try a city name';
   }
 }
 
@@ -2305,13 +2122,13 @@ function toggleWeatherPopover(e) {
     const input = document.getElementById('weather-loc-input');
     const loc = loadWeatherLoc();
     input.placeholder = loc.name;
-    setTimeout(() => input.focus(), 50);
+    setTimeout(function() { input.focus(); }, 50);
   }
 }
 
-// Close popover when clicking outside
-document.addEventListener('click', () => {
-  document.getElementById('weather-popover')?.classList.remove('open');
+document.addEventListener('click', function() {
+  const pop = document.getElementById('weather-popover');
+  if (pop) pop.classList.remove('open');
 });
 
 function initWeather() {
@@ -2319,8 +2136,8 @@ function initWeather() {
   setInterval(fetchWeather, 60 * 60 * 1000);
 }
 
-// Init calls placed here so all functions and variables are fully declared first
 initWeather();
-initVerse();</script>
+initVerse();
+</script>
 </body>
 </html>
