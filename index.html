@@ -461,6 +461,43 @@
     transition: background 0.15s;
   }
   .cluster-more-btn:hover { background: #d8e4f5; }
+  .cluster-analyze-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; color: var(--text-secondary);
+    background: none; border: 1px solid var(--border);
+    border-radius: 99px; padding: 3px 10px;
+    cursor: pointer; margin-top: 6px; margin-left: 6px;
+    transition: all 0.15s;
+  }
+  .cluster-analyze-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .cluster-analyze-btn.loading { opacity: 0.5; pointer-events: none; }
+  .cluster-analysis {
+    display: none;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+  }
+  .cluster-analysis.visible { display: block; }
+  .cluster-analysis-title {
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 10px;
+  }
+  .cluster-analysis-perspective {
+    margin-bottom: 10px; padding: 8px 10px;
+    border-left: 3px solid var(--border);
+    border-radius: 0 6px 6px 0;
+    background: var(--bg);
+  }
+  .cluster-analysis-bias {
+    font-size: 10px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;
+  }
+  .cluster-analysis-text {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.55;
+  }
+  .cluster-analysis-error {
+    font-size: 12px; color: #C0392B; margin-top: 8px;
+  }
 
   /* ── Manage sources panel ── */
   .manage-btn {
@@ -1864,6 +1901,97 @@ function clusterTopic(group) {
 }
 
 // Bias order for sorting headlines within a cluster — left to right on the spectrum
+// ── Cluster perspective analysis (Anthropic API) ──
+// Sends the cluster headlines + bias labels to Claude and renders a per-perspective
+// narrative breakdown inline in the card. Cached per analysis panel so repeat
+// clicks don't re-fetch.
+
+async function analyzeCluster(analysisId, articles, btn) {
+  const panel = document.getElementById(analysisId);
+  if (!panel) return;
+
+  // Toggle off if already showing
+  if (panel.classList.contains('visible')) {
+    panel.classList.remove('visible');
+    btn.textContent = '⚡ Analyze perspectives';
+    return;
+  }
+
+  // If already populated (cached), just show it
+  if (panel.innerHTML.trim()) {
+    panel.classList.add('visible');
+    btn.textContent = '✕ Hide analysis';
+    return;
+  }
+
+  // Start loading
+  btn.classList.add('loading');
+  btn.textContent = 'Analyzing…';
+
+  // Build prompt from headlines grouped by bias
+  const grouped = {};
+  articles.forEach(a => {
+    const key = a.bias || 'Unknown';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(`"${a.title}" (${a.source})`);
+  });
+
+  const headlineBlock = Object.entries(grouped)
+    .map(([bias, headlines]) => `${bias}:
+${headlines.join('
+')}`)
+    .join('
+
+');
+
+  const prompt = `The following news headlines all cover the same story, grouped by the political bias of the source. Analyze how each perspective frames this story differently. For each bias group, write 1-2 sentences explaining their narrative angle, what they emphasize, and what they downplay or omit. Be concise and neutral in your analysis. Format your response as JSON like this:
+[{"bias": "Center-Left", "color": "#2C6B8B", "analysis": "..."},  ...]
+
+Headlines:
+${headlineBlock}
+
+Return ONLY valid JSON, no markdown, no preamble.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+
+    // Parse JSON response
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const perspectives = JSON.parse(clean);
+
+    // Render
+    panel.innerHTML = `
+      <div class="cluster-analysis-title">📰 Narrative Analysis</div>
+      ${perspectives.map(p => `
+        <div class="cluster-analysis-perspective" style="border-left-color:${p.color || '#ccc'}">
+          <div class="cluster-analysis-bias">${p.bias}</div>
+          <div class="cluster-analysis-text">${p.analysis}</div>
+        </div>`).join('')}`;
+
+    panel.classList.add('visible');
+    btn.textContent = '✕ Hide analysis';
+  } catch(e) {
+    panel.innerHTML = `<div class="cluster-analysis-error">Analysis unavailable — ${e.message}</div>`;
+    panel.classList.add('visible');
+    btn.textContent = '✕ Hide analysis';
+    console.warn('[Analyze] failed:', e);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
 function toggleClusterMore(cardId, btn) {
   const more = document.getElementById(cardId + '-more');
   if (!more) return;
@@ -1963,6 +2091,8 @@ function renderClusters() {
         +${extraCount} more perspective${extraCount > 1 ? 's' : ''}
       </button>` : '';
 
+    const analysisId = 'analysis-' + cardId;
+
     return `<div class="cluster-card">
       <div class="cluster-topic">${topic}</div>
       <div class="cluster-meta">
@@ -1971,7 +2101,12 @@ function renderClusters() {
       </div>
       ${biasSpectrumHTML(group)}
       ${coverageBadgeHTML(group)}
-      <div class="cluster-headlines">${visibleHTML}${moreToggle}</div>
+      <div class="cluster-headlines">${visibleHTML}${moreToggle}
+        <button class="cluster-analyze-btn" onclick="analyzeCluster('${analysisId}', ${JSON.stringify(biasSorted.map(a => ({ title: a.title, source: a.srcName, bias: SOURCES.find(s=>s.id===a.srcId)?.bias||'' }))).replace(/'/g,'&#39;')}, this)">
+          ⚡ Analyze perspectives
+        </button>
+      </div>
+      <div class="cluster-analysis" id="${analysisId}"></div>
     </div>`;
   }).join('');
 }
