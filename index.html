@@ -1836,14 +1836,14 @@ function buildClusters() {
   const used = new Set();
   const clusters = [];
 
-  // Phase 1: initial greedy clustering (Jaccard >= 0.16 per-article similarity)
+  // Phase 1: initial greedy clustering (Jaccard >= 0.20 per-article similarity)
   for (let i = 0; i < tokenized.length; i++) {
     if (used.has(i)) continue;
     const group = [tokenized[i]];
     used.add(i);
     for (let j = i + 1; j < tokenized.length; j++) {
       if (used.has(j)) continue;
-      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.16);
+      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.20);
       if (similar) {
         const alreadyHasSrc = group.some(g => g.srcId === tokenized[j].srcId);
         if (!alreadyHasSrc) { group.push(tokenized[j]); used.add(j); }
