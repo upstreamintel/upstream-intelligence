@@ -400,7 +400,23 @@
   }
   .trending-header {
     display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px;
+    cursor: pointer; user-select: none;
   }
+  .trending-header:hover .trending-title { opacity: 0.75; }
+  .trending-collapse-btn {
+    margin-left: auto; font-size: 11px; color: var(--text-muted);
+    background: none; border: none; cursor: pointer; padding: 0;
+    font-family: 'DM Sans', sans-serif; flex-shrink: 0;
+  }
+  .trending-collapsed-badge {
+    display: none;
+    font-size: 10px; font-weight: 500;
+    background: var(--accent-light); color: var(--accent);
+    padding: 2px 8px; border-radius: 99px;
+    white-space: nowrap;
+  }
+  .trending-section.collapsed .trending-collapsed-badge { display: inline; }
+  .trending-section.collapsed .trending-sub { display: none; }
   .trending-title {
     font-family: 'Spectral', serif;
     font-size: 15px; font-weight: 500; color: var(--text-primary);
@@ -714,11 +730,15 @@
 <div class="breaking-dropdown" id="breaking-dropdown"></div>
 
 <div class="trending-section" id="trending-section" style="display:none">
-  <div class="trending-header">
+  <div class="trending-header" onclick="toggleTrending()">
     <span class="trending-title">Trending across sources</span>
     <span class="trending-sub" id="trending-sub"></span>
+    <span class="trending-collapsed-badge" id="trending-collapsed-badge"></span>
+    <button class="trending-collapse-btn" id="trending-collapse-btn">▲ collapse</button>
   </div>
-  <div class="clusters" id="clusters"></div>
+  <div id="trending-body">
+    <div class="clusters" id="clusters"></div>
+  </div>
 </div>
 
 <div class="main">
@@ -1402,6 +1422,34 @@ document.addEventListener('click', e => {
 
 // ── Layout toggle ──
 const LAYOUT_KEY = 'dailyten_layout';
+// ── Trending collapse ──
+const TRENDING_KEY = 'upstream_trending_collapsed';
+
+function toggleTrending() {
+  const body = document.getElementById('trending-body');
+  const btn = document.getElementById('trending-collapse-btn');
+  const section = document.getElementById('trending-section');
+  const isCollapsed = body.style.display === 'none';
+  body.style.display = isCollapsed ? '' : 'none';
+  btn.textContent = isCollapsed ? '▲ collapse' : '▼ expand';
+  section.classList.toggle('collapsed', !isCollapsed);
+  section.style.paddingBottom = isCollapsed ? '' : '16px';
+  try { localStorage.setItem(TRENDING_KEY, isCollapsed ? '0' : '1'); } catch(e) {}
+}
+
+function initTrending() {
+  try {
+    const collapsed = localStorage.getItem(TRENDING_KEY) === '1';
+    if (collapsed) {
+      const body = document.getElementById('trending-body');
+      const btn = document.getElementById('trending-collapse-btn');
+      const section = document.getElementById('trending-section');
+      if (body) body.style.display = 'none';
+      if (btn) btn.textContent = '▼ expand';
+      if (section) { section.classList.add('collapsed'); section.style.paddingBottom = '16px'; }
+    }
+  } catch(e) {}
+}
 
 function setLayout(mode) {
   const grid = document.getElementById('grid');
@@ -2025,6 +2073,8 @@ function renderClusters() {
 
   section.style.display = 'block';
   sub.textContent = clusters.length + ' stories covered by 3+ sources';
+  const badge = document.getElementById('trending-collapsed-badge');
+  if (badge) badge.textContent = clusters.length + ' stories';
 
   container.innerHTML = clusters.map(group => {
     const topic = clusterTopic(group);
@@ -2073,6 +2123,7 @@ function renderClusters() {
 
 loadAll();
 initLayout();
+initTrending();
 // ── Bible Verse of the Day (labs.bible.org, NET translation) ──
 const VERSE_KEY = 'upstream_verse';
 
