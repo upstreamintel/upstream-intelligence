@@ -658,9 +658,9 @@
   <button class="pill"        data-f="fp"       onclick="setFilter('fp')">Foreign policy</button>
   <button class="pill"        data-f="markets"  onclick="setFilter('markets')">Markets</button>
   <button class="pill"        data-f="energy"   onclick="setFilter('energy')">Energy</button>
-  <button class="pill"        data-f="domestic" onclick="setFilter('domestic')">Domestic policy</button>
+  <button class="pill"        data-f="domestic" onclick="setFilter('domestic')">US Politics</button>
   <button class="pill"        data-f="military" onclick="setFilter('military')">Military / Defense</button>
-  <button class="pill"        data-f="oil"      onclick="setFilter('oil')">OPEC / Oil markets</button>
+  <button class="pill"        data-f="oil"      onclick="setFilter('oil')">Upstream / E&P</button>
   <div class="search-wrap" id="search-wrap">
     <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
       <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
@@ -835,7 +835,29 @@ const MKT_KW = ['fed ','federal reserve','interest rate','inflation','gdp','rece
 const EN_KW  = ['oil price','crude','natural gas','lng','opec','permian','eagle ford','shale','refinery','pipeline','barrel','boe','upstream','downstream','energy','petroleum','eog','chevron','exxon','conocophillips','conoco','halliburton','schlumberger','energy sector'];
 const DOM_KW = ['trump','biden','congress','senate','house of representatives','white house','executive order','legislation','supreme court','fda','fbi','cia','doj','doge','rfk','hhs','medicare','medicaid','social security','immigration','border','deportat','tariff','maga','democrat','republican','gop','election','ballot','voting','governor','attorney general','epa','sec ','irs','federal budget','national debt','deficit','stimulus','infrastructure','obamacare','affordable care','vaccine mandate','abortion','gun control','second amendment','first amendment','constitution','federal court','appeals court'];
 const MIL_KW = ['airstrike','air strike','bombing','drone strike','missile strike','ground troops','military operation','special forces','warship','aircraft carrier','fighter jet','f-35','f-16','stealth bomber','navy seal','delta force','marines','army','battalion','brigade','artillery','tank','armored','naval','air force','defense ministry','joint chiefs','centcom','nato forces','deployment','casualties','killed in action','wounded','siege','offensive operation','counteroffensive','precision strike','hypersonic','ballistic','intercept','shoot down','war crime','collateral damage','bunker','fortif'];
-const OIL_KW = ['opec','opec+','saudi aramco','production cut','output cut','oil output','crude production','spare capacity','oil supply','oil demand','wti','brent crude','barrel price','oil price','oil market','petroleum reserve','strategic reserve','eia report','api report','inventory build','inventory draw','oil inventory','refinery capacity','crude export','oil import','oil sanction','energy minister','oil minister','riyadh','abu dhabi','oil cartel','price war','production quota','market share','breakeven','shale production','drilling rig','rig count','baker hughes'];
+const UPSTREAM_KW = [
+  // Basin-specific
+  'eagle ford','permian','bakken','marcellus','utica','haynesville',
+  'anadarko','dj basin','scoop','stack','niobrara','montney',
+  'duvernay','wolfcamp','bone spring',
+  // Drilling & completions
+  'drilling','rig count','baker hughes','horizontal well','vertical well',
+  'completion','hydraulic fracturing','fracking','frac','wellbore',
+  'spud','drill bit','casing','cementing','perforating','stimulation',
+  'proppant','sand supply','water disposal','saltwater disposal',
+  // Production operations
+  'production decline','well productivity','initial production','ip rate',
+  'boe per day','barrels per day','mcf','artificial lift','rod pump',
+  'esp ','gas lift','plunger lift','workover','recompletion',
+  'enhanced recovery','eor','water flood','co2 flood',
+  // Operators & services
+  'crescent energy','eog resources','conocophillips','marathon oil',
+  'halliburton','slb','schlumberger','weatherford','patterson-uti',
+  'nabors','pioneer natural','devon energy','coterra',
+  // Upstream finance & planning
+  'capex','drilling budget','well cost','finding cost','reserve replacement',
+  'proved reserves','pud','type curve','decline curve','lateral length',
+];
 
 let activeFilter = 'all';
 let searchQuery = '';
@@ -952,7 +974,7 @@ function tagItem(title, desc) {
     en:  EN_KW.some(k  => t.includes(k)),
     dom: DOM_KW.some(k => t.includes(k)),
     mil: MIL_KW.some(k => t.includes(k)),
-    oil: OIL_KW.some(k => t.includes(k)),
+    oil: UPSTREAM_KW.some(k => t.includes(k)),
   };
 }
 
@@ -1062,9 +1084,9 @@ function buildArticleHTML(item) {
     tg.fp  ? `<span class="badge badge-fp">foreign policy</span>`   : '',
     tg.mkt ? `<span class="badge badge-mkt">markets</span>`         : '',
     tg.en  ? `<span class="badge badge-en">energy</span>`           : '',
-    tg.dom ? `<span class="badge badge-dom">domestic policy</span>` : '',
-    tg.mil ? `<span class="badge badge-mil">military</span>`        : '',
-    tg.oil ? `<span class="badge badge-oil">oil markets</span>`     : '',
+    tg.dom ? `<span class="badge badge-dom">us politics</span>`      : '',
+    tg.mil ? `<span class="badge badge-mil">military</span>`          : '',
+    tg.oil ? `<span class="badge badge-oil">upstream / e&p</span>`   : '',
     !tagged ? `<span class="badge badge-other">other</span>`        : '',
   ].join('');
   const safeLink = item.link.replace(/"/g,'&quot;');
