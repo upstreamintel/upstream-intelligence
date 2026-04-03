@@ -827,6 +827,36 @@ const SOURCES = [
     fallback:'https://www.kristv.com/feed',
     bias:'Local News', biasColor:'#4A7C8B'
   },
+  {
+    id:'eia', name:'EIA Today in Energy', color:'#1F6F8B', site:'https://www.eia.gov/todayinenergy',
+    url:'https://www.eia.gov/rss/todayinenergy.xml',
+    fallback: null,
+    bias:'Government / Data', biasColor:'#1F6F8B'
+  },
+  {
+    id:'ev', name:'Energy Voice', color:'#2C5F2E', site:'https://www.energyvoice.com',
+    url:'https://www.energyvoice.com/category/oilandgas/feed',
+    fallback:'https://www.energyvoice.com/feed',
+    bias:'Industry / Trade', biasColor:'#4A7C3F'
+  },
+  {
+    id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
+    url:'https://www.enverus.com/feed',
+    fallback: null,
+    bias:'Industry / Data', biasColor:'#E87722'
+  },
+  {
+    id:'og360', name:'Oil & Gas 360', color:'#2E4057', site:'https://www.oilandgas360.com',
+    url:'https://www.oilandgas360.com/feed',
+    fallback: null,
+    bias:'Industry / Trade', biasColor:'#4A7C3F'
+  },
+  {
+    id:'pbog', name:'Permian Basin Oil & Gas', color:'#8B4513', site:'https://www.pboilandgasmagazine.com',
+    url:'https://www.pboilandgasmagazine.com/category/news/feed',
+    fallback:'https://www.pboilandgasmagazine.com/feed',
+    bias:'Industry / Trade', biasColor:'#4A7C3F'
+  },
 
 ];
 
@@ -853,6 +883,14 @@ const UPSTREAM_KW = [
   // Upstream finance & planning (domain-specific phrases)
   'drilling budget','well cost','finding cost','reserve replacement',
   'proved reserves','type curve','decline curve',
+  // Technology & innovation (O&G-specific context)
+  'digital oilfield','digital twin','autonomous drilling','closed-loop drilling',
+  'machine learning','artificial intelligence','predictive maintenance',
+  'production optimization','reservoir characterization','subsurface model',
+  'fiber optic','distributed temperature','distributed acoustic',
+  'real-time drilling','managed pressure drilling','rotary steerable',
+  'geosteering','logging while drilling','measurement while drilling',
+  'inflow control','intelligent well','smart well',
 ];
 
 let activeFilter = 'all';
@@ -1908,6 +1946,7 @@ const BIAS_ORDER = {
   'Pro-Kremlin': 6, 'Pro-Iran State': 6, 'Chinese State Wire': 6,
   'Independent / Hong Kong': 3, 'Independent / MENA': 3,
   'Industry / Trade': 3, 'Center / Industry': 3,
+  'Industry / Data': 3, 'Government / Data': 3,
   'Local News': 3, 'Sports': 3,
 };
 
