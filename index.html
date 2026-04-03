@@ -1941,20 +1941,11 @@ async function analyzeCluster(analysisId, btn) {
   });
 
   const headlineBlock = Object.entries(grouped)
-    .map(([bias, headlines]) => `${bias}:
-${headlines.join('
-')}`)
-    .join('
+    .map(([bias, headlines]) => bias + ':\\n' + headlines.join('\\n'))
+    .join('\\n\\n');
 
-');
+  const prompt = 'The following news headlines all cover the same story, grouped by the political bias of the source. Analyze how each perspective frames this story differently. For each bias group, write 1-2 sentences explaining their narrative angle, what they emphasize, and what they downplay or omit. Be concise and neutral in your analysis. Format your response as JSON like this: [{"bias": "Center-Left", "color": "#2C6B8B", "analysis": "..."}]. Return ONLY valid JSON, no markdown, no preamble.\\n\\nHeadlines:\\n' + headlineBlock;
 
-  const prompt = `The following news headlines all cover the same story, grouped by the political bias of the source. Analyze how each perspective frames this story differently. For each bias group, write 1-2 sentences explaining their narrative angle, what they emphasize, and what they downplay or omit. Be concise and neutral in your analysis. Format your response as JSON like this:
-[{"bias": "Center-Left", "color": "#2C6B8B", "analysis": "..."},  ...]
-
-Headlines:
-${headlineBlock}
-
-Return ONLY valid JSON, no markdown, no preamble.`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
