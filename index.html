@@ -107,6 +107,10 @@
   }
   .refresh-btn:hover { background: var(--bg); border-color: var(--text-muted); }
   .refresh-btn.spinning { opacity: 0.5; pointer-events: none; }
+  .last-refreshed {
+    font-size: 11px; color: var(--text-muted);
+    white-space: nowrap;
+  }
 
   /* ── Filter bar ── */
   .filter-bar {
@@ -635,6 +639,7 @@
       </button>
     </div>
     <button class="refresh-btn" id="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+    <span class="last-refreshed" id="last-refreshed"></span>
   </div>
 
   <div class="sources-panel" id="sources-panel">
@@ -1619,6 +1624,11 @@ function loadAll() {
         if (pending === 0) {
           btn.textContent = '↻ Refresh';
           btn.classList.remove('spinning');
+          // Show last refreshed time in local timezone
+          const now = new Date();
+          const timeStr = now.toLocaleString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+          const el = document.getElementById('last-refreshed');
+          if (el) el.textContent = 'Updated ' + timeStr;
 
           // All feeds have settled — snapshot every article link into prevLinks.
           // This is intentionally deferred until here: writing prevLinks per-feed
