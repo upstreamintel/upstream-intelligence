@@ -836,27 +836,23 @@ const EN_KW  = ['oil price','crude','natural gas','lng','opec','permian','eagle 
 const DOM_KW = ['trump','biden','congress','senate','house of representatives','white house','executive order','legislation','supreme court','fda','fbi','cia','doj','doge','rfk','hhs','medicare','medicaid','social security','immigration','border','deportat','tariff','maga','democrat','republican','gop','election','ballot','voting','governor','attorney general','epa','sec ','irs','federal budget','national debt','deficit','stimulus','infrastructure','obamacare','affordable care','vaccine mandate','abortion','gun control','second amendment','first amendment','constitution','federal court','appeals court'];
 const MIL_KW = ['airstrike','air strike','bombing','drone strike','missile strike','ground troops','military operation','special forces','warship','aircraft carrier','fighter jet','f-35','f-16','stealth bomber','navy seal','delta force','marines','army','battalion','brigade','artillery','tank','armored','naval','air force','defense ministry','joint chiefs','centcom','nato forces','deployment','casualties','killed in action','wounded','siege','offensive operation','counteroffensive','precision strike','hypersonic','ballistic','intercept','shoot down','war crime','collateral damage','bunker','fortif'];
 const UPSTREAM_KW = [
-  // Basin-specific
-  'eagle ford','permian','bakken','marcellus','utica','haynesville',
-  'anadarko','dj basin','scoop','stack','niobrara','montney',
-  'duvernay','wolfcamp','bone spring',
-  // Drilling & completions
-  'drilling','rig count','baker hughes','horizontal well','vertical well',
-  'completion','hydraulic fracturing','fracking','frac','wellbore',
-  'spud','drill bit','casing','cementing','perforating','stimulation',
-  'proppant','sand supply','water disposal','saltwater disposal',
-  // Production operations
-  'production decline','well productivity','initial production','ip rate',
-  'boe per day','barrels per day','mcf','artificial lift','rod pump',
-  'esp ','gas lift','plunger lift','workover','recompletion',
-  'enhanced recovery','eor','water flood','co2 flood',
-  // Operators & services
-  'crescent energy','eog resources','conocophillips','marathon oil',
-  'halliburton','slb','schlumberger','weatherford','patterson-uti',
-  'nabors','pioneer natural','devon energy','coterra',
-  // Upstream finance & planning
-  'capex','drilling budget','well cost','finding cost','reserve replacement',
-  'proved reserves','pud','type curve','decline curve','lateral length',
+  // Basin-specific (proper nouns — zero false positive risk)
+  'eagle ford','permian basin','bakken','marcellus','utica shale','haynesville',
+  'anadarko basin','dj basin','niobrara','montney','duvernay','wolfcamp','bone spring',
+  // Drilling & completions (O&G-specific phrases only)
+  'rig count','horizontal well','vertical well','hydraulic fracturing','wellbore',
+  'drill bit','saltwater disposal','water disposal well','proppant',
+  'lateral length','well spacing','pad drilling',
+  // Production operations (unambiguous O&G terms)
+  'workover','recompletion','artificial lift','rod pump','gas lift','plunger lift',
+  'enhanced recovery','water flood','co2 flood','production decline',
+  'initial production rate','ip rate','boe per day','barrels per day',
+  // Operators & services (proper nouns)
+  'crescent energy','eog resources','marathon oil',
+  'patterson-uti','nabors industries','pioneer natural','devon energy','coterra',
+  // Upstream finance & planning (domain-specific phrases)
+  'drilling budget','well cost','finding cost','reserve replacement',
+  'proved reserves','type curve','decline curve',
 ];
 
 let activeFilter = 'all';
