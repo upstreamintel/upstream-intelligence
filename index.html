@@ -1610,7 +1610,14 @@ function loadAll() {
 // Separating scan (checkBreaking) from render (renderBreakingBar) lets markSeen advance
 // to the next headline instantly — no refresh needed, no re-querying localStorage.
 
-const BREAKING_KW = ['breaking','attack','attacked','attacks','explosion','explodes','exploded','sanctions','war','crisis','emergency','invasion','invaded','strike','strikes','coup','ceasefire','missile','nuclear','collapse','collapsed','assassination','assassinated','blockade','evacuate','evacuation','catastrophe','critical','crash','crashed','kills','killed','killing','dead','deaths','hostage','hostages','detained','arrested','shooting','shot','bombed','bombing','conflict','alert'];
+const BREAKING_KW = [
+  // Unambiguously alarming in any headline context
+  'explosion','missile strike','airstrike','air strike','nuclear strike',
+  'ground invasion','invasion','invaded',
+  'coup','assassinated',
+  'ceasefire','blockade','evacuation','catastrophe',
+  'hostage','hostages','bombed','bombing',
+];
 
 let breakingDismissed = false;
 // Set to true once all feeds have settled in the current refresh cycle.
@@ -1660,6 +1667,7 @@ function renderBreakingBar() {
 }
 
 // Full scan — walks all loaded feeds and finds articles that are:
+//   • published within the last 6 hours (recency cutoff — older articles aren't breaking)
 //   • not in prevLinks  (i.e. genuinely new since the last refresh)
 //   • not in seenLinks  (i.e. not manually dismissed by the user)
 //   • contain a breaking keyword in the title
@@ -1668,6 +1676,7 @@ function checkBreaking() {
   if (breakingDismissed) return;
   const prevLinks = loadPrevLinks();
   const seenLinks = loadSeenLinks();
+  const cutoff = Date.now() - 6 * 60 * 60 * 1000; // 6-hour recency window
   const matches = [];
 
   SOURCES.forEach(src => {
@@ -1677,6 +1686,8 @@ function checkBreaking() {
     data.items.forEach(item => {
       if (!item.link) return;
       if (seenLinks.has(item.link)) return;
+      // Drop articles older than 6 hours — they're not breaking news
+      if (item.pubDate && new Date(item.pubDate).getTime() < cutoff) return;
       // Before all feeds settle, ignore prevLinks so we don't prematurely mark
       // articles as old. After settling, prevLinks is the full batch snapshot and
       // it's safe to use it to suppress articles seen in the prior session.
