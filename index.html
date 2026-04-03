@@ -431,6 +431,28 @@
   .cluster-hl-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
   .cluster-hl-source { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
 
+  /* ── Cluster bias enhancements ── */
+  .cluster-spectrum {
+    display: flex; gap: 3px; align-items: center;
+    margin-bottom: 10px; height: 5px; border-radius: 99px; overflow: hidden;
+  }
+  .cluster-spectrum-seg {
+    height: 100%; border-radius: 99px; flex-shrink: 0;
+  }
+  .cluster-coverage {
+    font-size: 10px; color: var(--text-muted);
+    margin-bottom: 8px; letter-spacing: 0.03em;
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  }
+  .cluster-coverage-pip {
+    display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .cluster-hl-bias {
+    font-size: 9px; color: var(--text-muted);
+    opacity: 0.75; margin-left: 3px; white-space: nowrap;
+  }
+
   /* ── Manage sources panel ── */
   .manage-btn {
     font-family: 'DM Sans', sans-serif;
@@ -1759,7 +1781,7 @@ function buildClusters() {
     data.items
       .filter(item => passesFilter(item))
       .forEach(item => {
-        allArticles.push({ ...item, srcId: src.id, srcName: src.name, srcColor: src.color });
+        allArticles.push({ ...item, srcId: src.id, srcName: src.name, srcColor: src.color, bias: src.bias });
       });
   });
   if (allArticles.length === 0) return [];
@@ -1832,6 +1854,48 @@ function clusterTopic(group) {
   return trimmed.slice(0, trimmed.lastIndexOf(' ')) + '…';
 }
 
+// Bias order for sorting headlines within a cluster — left to right on the spectrum
+const BIAS_ORDER = {
+  'Far Left': 0, 'Left': 1, 'Center-Left': 2, 'Center': 3, 'Aggregator': 3,
+  'Center-Right': 4, 'Right': 5, 'Far Right': 6,
+  'Libertarian': 4, 'Anti-Interventionist': 3,
+  'Pro-Kremlin': 6, 'Pro-Iran State': 6, 'Chinese State Wire': 6,
+  'Independent / Hong Kong': 3, 'Independent / MENA': 3,
+  'Industry / Trade': 3, 'Center / Industry': 3,
+  'Local News': 3, 'Sports': 3,
+};
+
+function biasRank(bias) {
+  return BIAS_ORDER[bias] ?? 3; // default to center if unknown
+}
+
+// Build the color spectrum bar showing which biases are covering the story
+function biasSpectrumHTML(group) {
+  const sorted = [...group].sort((a, b) => biasRank(a.bias) - biasRank(b.bias));
+  const segs = sorted.map(a => {
+    const src = SOURCES.find(s => s.id === a.srcId);
+    const color = src?.biasColor || a.srcColor;
+    return `<div class="cluster-spectrum-seg" style="background:${color};flex:1" title="${a.srcName} — ${src?.bias || 'Unknown'}"></div>`;
+  }).join('');
+  return `<div class="cluster-spectrum">${segs}</div>`;
+}
+
+// Build the coverage summary line — shows unique bias categories present
+function coverageBadgeHTML(group) {
+  const seen = new Map();
+  [...group]
+    .sort((a, b) => biasRank(a.bias) - biasRank(b.bias))
+    .forEach(a => {
+      const src = SOURCES.find(s => s.id === a.srcId);
+      if (src && !seen.has(src.bias)) seen.set(src.bias, src.biasColor);
+    });
+  if (seen.size <= 1) return '';
+  const pips = [...seen.entries()].map(([label, color]) =>
+    `<span class="cluster-coverage-pip" style="background:${color}" title="${label}"></span>${label}`
+  ).join(' · ');
+  return `<div class="cluster-coverage">${pips}</div>`;
+}
+
 function renderClusters() {
   const clusters = buildClusters();
   const section = document.getElementById('trending-section');
@@ -1845,17 +1909,24 @@ function renderClusters() {
 
   container.innerHTML = clusters.map(group => {
     const topic = clusterTopic(group);
-    // Sort group newest-first before rendering headlines
-    const sorted = [...group].filter(a => a.pubDate).sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-    const mostRecent = sorted[0] || group[0];
+
+    // Sort headlines by bias left→right so you read the same story across perspectives
+    const biasSorted = [...group].sort((a, b) => biasRank(a.bias) - biasRank(b.bias));
+
+    const mostRecent = [...group]
+      .filter(a => a.pubDate)
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0] || group[0];
     const timeStr = mostRecent?.pubDate ? relTime(mostRecent.pubDate) : '';
-    const headlines = sorted.slice(0, 5).map(a => {
+
+    const headlines = biasSorted.slice(0, 6).map(a => {
+      const src = SOURCES.find(s => s.id === a.srcId);
+      const biasLabel = src?.bias || '';
       const safeLink = a.link.replace(/"/g, '&quot;');
       return `<a class="cluster-headline" href="${safeLink}" target="_blank" rel="noopener">
-        <div class="cluster-dot" style="background:${a.srcColor}"></div>
+        <div class="cluster-dot" style="background:${src?.biasColor || a.srcColor}"></div>
         <div>
           <div class="cluster-hl-text">${a.title}</div>
-          <div class="cluster-hl-source">${a.srcName}</div>
+          <div class="cluster-hl-source">${a.srcName}<span class="cluster-hl-bias"> · ${biasLabel}</span></div>
         </div>
       </a>`;
     }).join('');
@@ -1866,6 +1937,8 @@ function renderClusters() {
         <span class="cluster-source-count">${group.length} sources</span>
         <span>${timeStr}</span>
       </div>
+      ${biasSpectrumHTML(group)}
+      ${coverageBadgeHTML(group)}
       <div class="cluster-headlines">${headlines}</div>
     </div>`;
   }).join('');
