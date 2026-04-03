@@ -452,6 +452,15 @@
     font-size: 9px; color: var(--text-muted);
     opacity: 0.75; margin-left: 3px; white-space: nowrap;
   }
+  .cluster-more-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; color: var(--accent);
+    background: var(--accent-light); border: none;
+    border-radius: 99px; padding: 3px 10px;
+    cursor: pointer; margin-top: 6px;
+    transition: background 0.15s;
+  }
+  .cluster-more-btn:hover { background: #d8e4f5; }
 
   /* ── Manage sources panel ── */
   .manage-btn {
@@ -1855,6 +1864,17 @@ function clusterTopic(group) {
 }
 
 // Bias order for sorting headlines within a cluster — left to right on the spectrum
+function toggleClusterMore(cardId, btn) {
+  const more = document.getElementById(cardId + '-more');
+  if (!more) return;
+  const isHidden = more.style.display === 'none';
+  more.style.display = isHidden ? '' : 'none';
+  const count = more.querySelectorAll('.cluster-headline').length;
+  btn.textContent = isHidden
+    ? 'Show less'
+    : `+${count} more perspective${count > 1 ? 's' : ''}`;
+}
+
 const BIAS_ORDER = {
   'Far Left': 0, 'Left': 1, 'Center-Left': 2, 'Center': 3, 'Aggregator': 3,
   'Center-Right': 4, 'Right': 5, 'Far Right': 6,
@@ -1918,7 +1938,8 @@ function renderClusters() {
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0] || group[0];
     const timeStr = mostRecent?.pubDate ? relTime(mostRecent.pubDate) : '';
 
-    const headlines = biasSorted.slice(0, 6).map(a => {
+    const VISIBLE = 5;
+    const makeHeadlineHTML = (a) => {
       const src = SOURCES.find(s => s.id === a.srcId);
       const biasLabel = src?.bias || '';
       const safeLink = a.link.replace(/"/g, '&quot;');
@@ -1929,7 +1950,18 @@ function renderClusters() {
           <div class="cluster-hl-source">${a.srcName}<span class="cluster-hl-bias"> · ${biasLabel}</span></div>
         </div>
       </a>`;
-    }).join('');
+    };
+
+    const visibleHTML = biasSorted.slice(0, VISIBLE).map(makeHeadlineHTML).join('');
+    const hiddenHTML  = biasSorted.slice(VISIBLE).map(makeHeadlineHTML).join('');
+    const extraCount  = biasSorted.length - VISIBLE;
+    const cardId      = 'cluster-' + Math.random().toString(36).slice(2, 7);
+
+    const moreToggle = extraCount > 0 ? `
+      <div id="${cardId}-more" style="display:none">${hiddenHTML}</div>
+      <button class="cluster-more-btn" onclick="toggleClusterMore('${cardId}', this)">
+        +${extraCount} more perspective${extraCount > 1 ? 's' : ''}
+      </button>` : '';
 
     return `<div class="cluster-card">
       <div class="cluster-topic">${topic}</div>
@@ -1939,7 +1971,7 @@ function renderClusters() {
       </div>
       ${biasSpectrumHTML(group)}
       ${coverageBadgeHTML(group)}
-      <div class="cluster-headlines">${headlines}</div>
+      <div class="cluster-headlines">${visibleHTML}${moreToggle}</div>
     </div>`;
   }).join('');
 }
