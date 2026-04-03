@@ -258,11 +258,20 @@
     cursor: pointer;
     transition: background 0.1s;
     text-decoration: none;
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     color: inherit;
   }
   .article:last-child { border-bottom: none; }
   .article:hover { background: var(--bg); }
+  .article-dot-wrap { padding-top: 3px; width: 8px; flex-shrink: 0; }
+  .article-new-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--gw);
+    display: block;
+  }
+  .article-body { flex: 1; min-width: 0; }
   .article-title {
     font-size: 13px;
     line-height: 1.45;
@@ -1130,11 +1139,17 @@ function buildArticleHTML(item) {
   ].join('');
   const safeLink = item.link.replace(/"/g,'&quot;');
   const displayTitle = highlight(item.title, searchQuery);
+  const prevLinks = loadPrevLinks();
+  const isNew = allFeedsSettled && item.link && !prevLinks.has(item.link);
+  const dot = `<div class="article-dot-wrap">${isNew ? '<span class="article-new-dot"></span>' : ''}</div>`;
   return `<a class="article" href="${safeLink}" target="_blank" rel="noopener">
-    <div class="article-title">${displayTitle}</div>
-    <div class="article-meta">
-      <span class="article-time">${relTime(item.pubDate)}</span>
-      ${badges}
+    ${dot}
+    <div class="article-body">
+      <div class="article-title">${displayTitle}</div>
+      <div class="article-meta">
+        <span class="article-time">${relTime(item.pubDate)}</span>
+        ${badges}
+      </div>
     </div>
   </a>`;
 }
