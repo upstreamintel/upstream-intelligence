@@ -1042,10 +1042,7 @@ async function fetchFeed(src) {
         store[src.id] = { state: 'done', items };
         renderCard(src);
         updateTotalCount();
-        // Run the breaking check as each feed arrives so the bar appears as early
-        // as possible. prevLinks is NOT saved here — that happens once in loadAll
-        // after every feed settles, preventing feeds that finish early from marking
-        // their own articles as "old" before later feeds have had a chance to check.
+        updateSourceBtn();
         checkBreaking();
         return;
       } catch(e) { /* next strategy */ }
@@ -1055,6 +1052,7 @@ async function fetchFeed(src) {
   store[src.id] = { state: 'error', items: [] };
   renderCard(src);
   updateTotalCount();
+  updateSourceBtn();
 }
 
 function buildArticleHTML(item) {
@@ -1275,11 +1273,16 @@ function moveSource(id, direction) {
 function updateSourceBtn() {
   const visible = SOURCES.filter(s => isVisible(s.id)).length;
   const total = SOURCES.length;
+  const errored = SOURCES.filter(s => isVisible(s.id) && store[s.id]?.state === 'error').length;
   const btn = document.getElementById('manage-btn');
   if (visible === 0) {
     btn.textContent = `⚙ Sources (0/${total})`;
     btn.style.color = '#C0392B';
     btn.style.borderColor = '#C0392B';
+  } else if (errored > 0) {
+    btn.textContent = `⚙ Sources (${visible}/${total} · ${errored} failed)`;
+    btn.style.color = '#B7770D';
+    btn.style.borderColor = '#B7770D';
   } else {
     btn.textContent = `⚙ Sources (${visible}/${total})`;
     btn.style.color = '';
@@ -1537,6 +1540,7 @@ function loadAll() {
   btn.textContent = '↻ Refreshing…';
   btn.classList.add('spinning');
   breakingDismissed = false;
+  allFeedsSettled = false;
   document.getElementById('breaking-bar').classList.remove('visible');
   // Clear prevLinks so this session starts fresh — only compare within same session
   savePrevLinks(new Set());
@@ -1571,6 +1575,7 @@ function loadAll() {
             if (d?.state === 'done') d.items.forEach(i => { if (i.link) allLinks.add(i.link); });
           });
           savePrevLinks(allLinks);
+          allFeedsSettled = true;
         }
       });
     }, i < 3 ? 0 : (i - 2) * 150);
@@ -1590,6 +1595,10 @@ function loadAll() {
 const BREAKING_KW = ['breaking','attack','attacked','attacks','explosion','explodes','exploded','sanctions','war','crisis','emergency','invasion','invaded','strike','strikes','coup','ceasefire','missile','nuclear','collapse','collapsed','assassination','assassinated','blockade','evacuate','evacuation','catastrophe','critical','crash','crashed','kills','killed','killing','dead','deaths','hostage','hostages','detained','arrested','shooting','shot','bombed','bombing','conflict','alert'];
 
 let breakingDismissed = false;
+// Set to true once all feeds have settled in the current refresh cycle.
+// While false, checkBreaking() ignores prevLinks so early-arriving feeds don't
+// get their articles marked "old" before the batch snapshot is written.
+let allFeedsSettled = false;
 // In-memory queue of current breaking matches, newest first.
 // Populated by checkBreaking(); drained by markSeen() as the user dismisses headlines.
 let breakingMatches = [];
@@ -1643,27 +1652,25 @@ function checkBreaking() {
   const seenLinks = loadSeenLinks();
   const matches = [];
 
-  console.log('[Breaking] prevLinks count:', prevLinks.size, 'seenLinks count:', seenLinks.size);
-
   SOURCES.forEach(src => {
     if (!isVisible(src.id)) return;
     const data = store[src.id];
     if (data?.state !== 'done') return;
-    let srcMatches = 0;
     data.items.forEach(item => {
       if (!item.link) return;
-      if (prevLinks.has(item.link) || seenLinks.has(item.link)) return;
+      if (seenLinks.has(item.link)) return;
+      // Before all feeds settle, ignore prevLinks so we don't prematurely mark
+      // articles as old. After settling, prevLinks is the full batch snapshot and
+      // it's safe to use it to suppress articles seen in the prior session.
+      if (allFeedsSettled && prevLinks.has(item.link)) return;
       const text = item.title.toLowerCase();
       const hasKeyword = BREAKING_KW.some(k => {
         const re = new RegExp(`\\b${k}\\b`, 'i');
         return re.test(text);
       });
-      if (hasKeyword) { matches.push({ ...item, srcName: src.name }); srcMatches++; }
+      if (hasKeyword) matches.push({ ...item, srcName: src.name });
     });
-    if (srcMatches) console.log(`[Breaking] ${src.name}: ${srcMatches} matches`);
   });
-
-  console.log('[Breaking] total matches:', matches.length);
 
   matches.sort((a, b) => {
     const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
@@ -1734,7 +1741,7 @@ document.addEventListener('click', e => {
 //
 // Identifies stories covered by 3+ sources and groups them into topic cards.
 // Key design decisions:
-//   - Jaccard threshold 0.25 (up from 0.15) for tighter, less duplicate clusters
+//   - Jaccard threshold 0.16 for phase 1 clustering (per-article similarity)
 //   - Extended stop words include common news verbs (warns, urges, hits, etc.)
 //     so they don't pollute token overlap and create false matches
 //   - Post-clustering merge pass combines clusters whose top tokens overlap ≥50%,
@@ -1800,7 +1807,7 @@ function buildClusters() {
   const used = new Set();
   const clusters = [];
 
-  // Phase 1: initial greedy clustering with tighter Jaccard threshold (0.25)
+  // Phase 1: initial greedy clustering (Jaccard >= 0.16 per-article similarity)
   for (let i = 0; i < tokenized.length; i++) {
     if (used.has(i)) continue;
     const group = [tokenized[i]];
@@ -2018,7 +2025,6 @@ var WEATHER_LOC_KEY = 'upstream_weather_loc';
 function loadWeatherLoc() {
   try {
     const raw = localStorage.getItem(WEATHER_LOC_KEY);
-    console.log('[Weather] localStorage read:', raw);
     const saved = JSON.parse(raw);
     if (saved && saved.lat && saved.lon) return saved;
   } catch(e) { console.warn('[Weather] localStorage read error:', e); }
@@ -2028,8 +2034,6 @@ function loadWeatherLoc() {
 function saveWeatherLoc(loc) {
   try {
     localStorage.setItem(WEATHER_LOC_KEY, JSON.stringify(loc));
-    const verify = localStorage.getItem(WEATHER_LOC_KEY);
-    console.log('[Weather] localStorage write verify:', verify);
   } catch(e) { console.warn('[Weather] localStorage write failed:', e); }
 }
 
@@ -2060,7 +2064,6 @@ async function fetchWeather() {
     const res = await fetch(buildWeatherURL(loc.lat, loc.lon), { signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
-    console.log('[Weather] response:', JSON.stringify(d).slice(0, 300));
     if (!d.current || d.current.temperature_2m == null) throw new Error('Missing current data');
     if (!d.daily   || !d.daily.temperature_2m_max)      throw new Error('Missing daily data');
     const temp   = Math.round(d.current.temperature_2m);
