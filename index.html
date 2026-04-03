@@ -1901,14 +1901,18 @@ function clusterTopic(group) {
 }
 
 // Bias order for sorting headlines within a cluster — left to right on the spectrum
+// Global store for cluster article data — avoids unsafe inline JSON in onclick attributes
+const clusterDataStore = {};
+
 // ── Cluster perspective analysis (Anthropic API) ──
 // Sends the cluster headlines + bias labels to Claude and renders a per-perspective
 // narrative breakdown inline in the card. Cached per analysis panel so repeat
 // clicks don't re-fetch.
 
-async function analyzeCluster(analysisId, articles, btn) {
+async function analyzeCluster(analysisId, btn) {
   const panel = document.getElementById(analysisId);
   if (!panel) return;
+  const articles = clusterDataStore[analysisId] || [];
 
   // Toggle off if already showing
   if (panel.classList.contains('visible')) {
@@ -2093,6 +2097,14 @@ function renderClusters() {
 
     const analysisId = 'analysis-' + cardId;
 
+    // Store article data in a global map keyed by analysisId to avoid
+    // fragile inline JSON serialization inside HTML onclick attributes
+    clusterDataStore[analysisId] = biasSorted.map(a => ({
+      title: a.title,
+      source: a.srcName,
+      bias: SOURCES.find(s => s.id === a.srcId)?.bias || ''
+    }));
+
     return `<div class="cluster-card">
       <div class="cluster-topic">${topic}</div>
       <div class="cluster-meta">
@@ -2102,7 +2114,7 @@ function renderClusters() {
       ${biasSpectrumHTML(group)}
       ${coverageBadgeHTML(group)}
       <div class="cluster-headlines">${visibleHTML}${moreToggle}
-        <button class="cluster-analyze-btn" onclick="analyzeCluster('${analysisId}', ${JSON.stringify(biasSorted.map(a => ({ title: a.title, source: a.srcName, bias: SOURCES.find(s=>s.id===a.srcId)?.bias||'' }))).replace(/'/g,'&#39;')}, this)">
+        <button class="cluster-analyze-btn" onclick="analyzeCluster('${analysisId}', this)">
           ⚡ Analyze perspectives
         </button>
       </div>
