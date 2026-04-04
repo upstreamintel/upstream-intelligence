@@ -1723,11 +1723,15 @@ function loadAll() {
 
 const BREAKING_KW = [
   // Unambiguously alarming in any headline context
-  'explosion','missile strike','airstrike','air strike','nuclear strike',
+  'explosion','explosions','missile strike','missile attack','airstrike','air strike',
+  'drone strike','drone attack','nuclear strike','nuclear attack',
   'ground invasion','invasion','invaded',
-  'coup','assassinated','executed','execution','massacred','genocide',
-  'ceasefire','blockade','evacuation','catastrophe',
-  'hostage','hostages','bombed','bombing',
+  'coup','assassinated','executed','execution','massacred','massacre','genocide',
+  'ceasefire','blockade','evacuation',
+  'hostage','hostages','bombed','bombing','shelling',
+  'declares war','at war','wartime',
+  'terror attack','terrorist attack',
+  'mass casualties','mass shooting',
 ];
 
 let breakingDismissed = false;
@@ -1787,7 +1791,7 @@ function checkBreaking() {
   if (breakingDismissed) return;
   const prevLinks = loadPrevLinks();
   const seenLinks = loadSeenLinks();
-  const cutoff = Date.now() - 6 * 60 * 60 * 1000; // 6-hour recency window
+  const cutoff = Date.now() - 12 * 60 * 60 * 1000; // 12-hour recency window
   const matches = [];
 
   SOURCES.forEach(src => {
