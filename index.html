@@ -1661,8 +1661,6 @@ function loadAll() {
   breakingDismissed = false;
   allFeedsSettled = false;
   document.getElementById('breaking-bar').classList.remove('visible');
-  // Clear prevLinks so this session starts fresh — only compare within same session
-  savePrevLinks(new Set());
   store = {};
   buildGrid();
   setDateDisplay();
@@ -1689,10 +1687,8 @@ function loadAll() {
           if (el) el.textContent = 'Updated ' + timeStr;
 
           // All feeds have settled — snapshot every article link into prevLinks.
-          // This is intentionally deferred until here: writing prevLinks per-feed
-          // caused a race where Feed A's links were "prev" by the time Feed B's
-          // checkBreaking() ran, making those articles invisible to the bar even
-          // though they were genuinely new this session.
+          // On the next refresh, any link already in this set is treated as "not new"
+          // so only genuinely new articles get the new-dot indicator.
           const allLinks = new Set();
           SOURCES.forEach(s => {
             const d = store[s.id];
