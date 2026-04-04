@@ -790,7 +790,7 @@ const SOURCES = [
     bias:'Center-Left', biasColor:'#2C6B8B'
   },
   {
-    id:'yf', name:'MarketWatch', color:'#6001D2', site:'https://www.marketwatch.com',
+    id:'yf', name:'MarketWatch', color:'#6001D2', site:'https://www.marketwatch.com', // id:'yf' retained from Yahoo Finance — changing would break localStorage prefs
     url:'https://feeds.marketwatch.com/marketwatch/topstories/',
     fallback:'https://feeds.marketwatch.com/marketwatch/marketpulse/',
     bias:'Center', biasColor:'#888780'
@@ -803,8 +803,8 @@ const SOURCES = [
   },
   {
     id:'cnn', name:'CNN — World', color:'#CC0000', site:'https://www.cnn.com/world',
-    url:'http://rss.cnn.com/rss/cnn_world.rss',
-    fallback:'http://rss.cnn.com/rss/cnn_allpolitics.rss',
+    url:'https://rss.cnn.com/rss/cnn_world.rss',
+    fallback:'https://rss.cnn.com/rss/cnn_allpolitics.rss',
     bias:'Center-Left', biasColor:'#2C6B8B'
   },
   {
@@ -867,7 +867,6 @@ const SOURCES = [
     fallback: null,
     bias:'Government / Data', biasColor:'#1F6F8B'
   },
-
   {
     id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
     url:'https://www.enverus.com/feed',
@@ -1997,7 +1996,7 @@ function buildClusters() {
 function clusterTopic(group) {
   const withDate = group.filter(a => a.pubDate);
   const mostRecent = withDate.length
-    ? withDate.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0]
+    ? [...withDate].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0]
     : group[0];
   // Trim to ~65 chars at a word boundary
   const title = mostRecent.title;
@@ -2011,8 +2010,7 @@ const BIAS_ORDER = {
   'Far Left': 0, 'Left': 1, 'Center-Left': 2, 'Center': 3, 'Aggregator': 3,
   'Center-Right': 4, 'Right': 5, 'Far Right': 6,
   'Libertarian': 4, 'Anti-Interventionist': 3,
-  'Pro-Kremlin': 6, 'Pro-Iran State': 6, 'Chinese State Wire': 6,
-  'Independent / Hong Kong': 3, 'Independent / MENA': 3,
+  'Pro-Kremlin': 6, 'Pro-Iran State': 6,
   'Industry / Trade': 3, 'Center / Industry': 3,
   'Industry / Data': 3, 'Government / Data': 3,
   'Local News': 3, 'Sports': 3,
