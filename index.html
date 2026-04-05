@@ -798,22 +798,7 @@
     <span class="market-price" id="ms-eia-label"><span class="market-loading">⋯</span></span>
     <span class="eia-pill flat" id="ms-eia-pill"></span>
   </div>
-  <!-- BH Rig Count -->
-  <div class="market-item">
-    <span class="market-label">US Rigs</span>
-    <span class="market-price" id="ms-rig-us"><span class="market-loading">⋯</span></span>
-    <span class="market-change flat" id="ms-rig-us-chg"></span>
-  </div>
-  <div class="market-item">
-    <span class="market-label">Permian</span>
-    <span class="market-price" id="ms-rig-perm"><span class="market-loading">⋯</span></span>
-    <span class="market-change flat" id="ms-rig-perm-chg"></span>
-  </div>
-  <div class="market-item">
-    <span class="market-label">Eagle Ford</span>
-    <span class="market-price" id="ms-rig-ef"><span class="market-loading">⋯</span></span>
-    <span class="market-change flat" id="ms-rig-ef-chg"></span>
-  </div>
+
   <!-- Timestamp -->
   <div class="market-item" style="margin-left:auto;border-right:none;">
     <span class="market-label" id="ms-updated" style="color:#3A3835;"></span>
@@ -2615,10 +2600,10 @@ function initMarketStrip() {
     if (strip) strip.style.display = 'none';
     return;
   }
-  // Fire all three in parallel — independent failures don't block each other
+  // Fire in parallel — independent failures don't block each other
   fetchPrices();
   fetchEIA();
-  fetchRigCount();
+  // fetchRigCount() — disabled, BH CSV blocked by Vercel; EIA v2 has no rig count route
   // Refresh prices every 15 minutes
   setInterval(fetchPrices, 15 * 60 * 1000);
 }
