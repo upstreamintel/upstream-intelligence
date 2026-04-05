@@ -1684,7 +1684,8 @@ function toggleTrending() {
 
 function initTrending() {
   try {
-    const collapsed = localStorage.getItem(TRENDING_KEY) === '1';
+    // Default collapsed — only expand if user explicitly chose to expand (stored as '0')
+    const collapsed = localStorage.getItem(TRENDING_KEY) !== '0';
     if (collapsed) {
       const body = document.getElementById('trending-body');
       const btn = document.getElementById('trending-collapse-btn');
