@@ -786,6 +786,12 @@
     <span class="market-price" id="ms-brent-price"><span class="market-loading">⋯</span></span>
     <span class="market-change flat" id="ms-brent-chg"></span>
   </div>
+  <!-- Nat Gas -->
+  <div class="market-item">
+    <span class="market-label">Nat Gas</span>
+    <span class="market-price" id="ms-ng-price"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-ng-chg"></span>
+  </div>
   <!-- EIA Inventory -->
   <div class="market-item">
     <span class="market-label">EIA Crude</span>
@@ -2547,15 +2553,16 @@ async function fetchPrices() {
   try {
     const res = await fetch(`${VERCEL_BASE}/api/prices`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { wti, brent } = await res.json();
-    setMarketCell('ms-wti-price',   'ms-wti-chg',   wti.price,   wti.change,   wti.pct);
-    setMarketCell('ms-brent-price', 'ms-brent-chg', brent.price, brent.change, brent.pct);
+    const { wti, brent, natgas } = await res.json();
+    setMarketCell('ms-wti-price',   'ms-wti-chg',   wti?.price,    wti?.change,    wti?.pct);
+    setMarketCell('ms-brent-price', 'ms-brent-chg', brent?.price,  brent?.change,  brent?.pct);
+    setMarketCell('ms-ng-price',    'ms-ng-chg',    natgas?.price, natgas?.change, natgas?.pct);
     const now = new Date();
     const t = now.toLocaleString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
     const el = document.getElementById('ms-updated');
     if (el) el.textContent = `Prices as of ${t}`;
   } catch(e) {
-    const ids = ['ms-wti-price','ms-wti-chg','ms-brent-price','ms-brent-chg'];
+    const ids = ['ms-wti-price','ms-wti-chg','ms-brent-price','ms-brent-chg','ms-ng-price','ms-ng-chg'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = '<span class="market-error">—</span>'; });
   }
 }
