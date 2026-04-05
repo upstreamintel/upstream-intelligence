@@ -1911,6 +1911,7 @@ function loadAll() {
   btn.classList.add('spinning');
   breakingDismissed = false;
   allFeedsSettled = false;
+  isFirstLoad = false; // manual refresh is never the first load
   document.getElementById('breaking-bar').classList.remove('visible');
   store = {};
   buildGrid();
@@ -1945,8 +1946,16 @@ function loadAll() {
             const d = store[s.id];
             if (d?.state === 'done') d.items.forEach(i => { if (i.link) allLinks.add(i.link); });
           });
-          savePrevLinks(allLinks);
-          allFeedsSettled = true;
+          // On first load: snapshot prevLinks as baseline but suppress dots and breaking bar.
+          // On subsequent refreshes: prevLinks is the prior snapshot so dots and breaking work correctly.
+          if (isFirstLoad) {
+            savePrevLinks(allLinks);
+            allFeedsSettled = false; // keep false so dots don't render on first load
+            isFirstLoad = false;
+          } else {
+            savePrevLinks(allLinks);
+            allFeedsSettled = true;
+          }
         }
       });
     }, i < 3 ? 0 : (i - 2) * 300);
@@ -1981,6 +1990,8 @@ let breakingDismissed = false;
 // While false, checkBreaking() ignores prevLinks so early-arriving feeds don't
 // get their articles marked "old" before the batch snapshot is written.
 let allFeedsSettled = false;
+// True on first page load — snapshot prevLinks but suppress dots and breaking bar
+let isFirstLoad = true;
 // In-memory queue of current breaking matches, newest first.
 // Populated by checkBreaking(); drained by markSeen() as the user dismisses headlines.
 let breakingMatches = [];
