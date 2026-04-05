@@ -404,6 +404,15 @@
     cursor: pointer; user-select: none;
   }
   .trending-header:hover .trending-title { opacity: 0.75; }
+  /* ── Trending new-stories indicator ── */
+  .trending-collapse-btn { position: relative; }
+  .trending-new-dot {
+    position: absolute; top: -3px; right: -8px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--gw); display: none;
+  }
+  .trending-new-dot.visible { display: block; }
+
   .trending-collapse-btn {
     margin-left: auto; font-size: 11px; color: var(--text-muted);
     background: none; border: none; cursor: pointer; padding: 0;
@@ -1682,6 +1691,33 @@ document.addEventListener('click', e => {
 const LAYOUT_KEY = 'dailyten_layout';
 // ── Trending collapse ──
 const TRENDING_KEY = 'upstream_trending_collapsed';
+const TRENDING_SEEN_COUNT_KEY = 'upstream_trending_seen_count';
+
+function getTrendingSeenCount() {
+  try { return parseInt(localStorage.getItem(TRENDING_SEEN_COUNT_KEY)) || 0; } catch(e) { return 0; }
+}
+function saveTrendingSeenCount(n) {
+  try { localStorage.setItem(TRENDING_SEEN_COUNT_KEY, String(n)); } catch(e) {}
+}
+function updateTrendingNewDot(clusterCount) {
+  const btn = document.getElementById('trending-collapse-btn');
+  if (!btn) return;
+  let dot = document.getElementById('trending-new-dot');
+  if (!dot) {
+    dot = document.createElement('span');
+    dot.id = 'trending-new-dot';
+    dot.className = 'trending-new-dot';
+    btn.appendChild(dot);
+  }
+  const section = document.getElementById('trending-section');
+  const isCollapsed = section?.classList.contains('collapsed');
+  const seenCount = getTrendingSeenCount();
+  if (isCollapsed && clusterCount > seenCount) {
+    dot.classList.add('visible');
+  } else {
+    dot.classList.remove('visible');
+  }
+}
 
 function toggleTrending() {
   const body = document.getElementById('trending-body');
@@ -1693,6 +1729,14 @@ function toggleTrending() {
   section.classList.toggle('collapsed', !isCollapsed);
   section.style.paddingBottom = isCollapsed ? '' : '16px';
   try { localStorage.setItem(TRENDING_KEY, isCollapsed ? '0' : '1'); } catch(e) {}
+  // When expanding, save current cluster count as seen and clear the dot
+  if (isCollapsed) {
+    const clusters = document.getElementById('clusters');
+    const count = clusters ? clusters.querySelectorAll('.cluster-card').length : 0;
+    saveTrendingSeenCount(count);
+    const dot = document.getElementById('trending-new-dot');
+    if (dot) dot.classList.remove('visible');
+  }
 }
 
 function initTrending() {
@@ -1708,6 +1752,10 @@ function initTrending() {
       if (section) { section.classList.add('collapsed'); section.style.paddingBottom = '16px'; }
     }
   } catch(e) {}
+  // Re-check dot now that collapsed class is applied
+  const clusters = document.getElementById('clusters');
+  const count = clusters ? clusters.querySelectorAll('.cluster-card').length : 0;
+  if (count > 0) updateTrendingNewDot(count);
 }
 
 function setLayout(mode) {
@@ -2368,6 +2416,7 @@ function renderClusters() {
   sub.textContent = clusters.length + ' stories covered by 3+ sources';
   const badge = document.getElementById('trending-collapsed-badge');
   if (badge) badge.textContent = clusters.length + ' stories';
+  updateTrendingNewDot(clusters.length);
 
   const clusterData = clusters.map(group => {
     const topic = clusterTopic(group);
