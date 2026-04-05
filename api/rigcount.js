@@ -1,93 +1,55 @@
 /**
- * /api/rigcount.js — Baker Hughes North America Rig Count proxy
- * Node.js runtime (not Edge) for longer timeout tolerance
+ * /api/rigcount.js — Weekly Rig Count via EIA API
+ * Uses EIA_API_KEY (already configured in Vercel env vars)
+ * Series: RIG_TOTUS_1 (US Total), RIG_TOTPB_1 (Permian), RIG_TOTEF_1 (Eagle Ford)
  */
 
-const BH_CSV_URL = 'https://rigcount.bakerhughes.com/static-files/north-america-rotary-rig-count-current?format=csv';
+const EIA_BASE = 'https://api.eia.gov/v2';
 
-function parseCSV(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  return lines.map(line => {
-    const cols = [];
-    let cur = '';
-    let inQuote = false;
-    for (const ch of line) {
-      if (ch === '"') { inQuote = !inQuote; }
-      else if (ch === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
-      else { cur += ch; }
-    }
-    cols.push(cur.trim());
-    return cols;
-  });
+async function fetchSeries(seriesId, apiKey, periods = 2) {
+  const url = `${EIA_BASE}/seriesid/${seriesId}?api_key=${apiKey}&length=${periods}`;
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!res.ok) throw new Error(`EIA HTTP ${res.status} for ${seriesId}`);
+  const j = await res.json();
+  const data = j.response?.data;
+  if (!data?.length) throw new Error(`No data for ${seriesId}`);
+  return data; // newest first
 }
-
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-};
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(204).setHeader('Access-Control-Allow-Origin', '*').end();
   }
 
+  const apiKey = process.env.EIA_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'EIA_API_KEY not configured' });
+  }
+
   try {
-    const response = await fetch(BH_CSV_URL, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; UpstreamIntelligence/2.0)',
-        'Accept': 'text/csv, */*',
-      },
-      signal: AbortSignal.timeout(25000), // 25s — generous for BH's slow CDN
-    });
+    const [usData, permianData, efData] = await Promise.allSettled([
+      fetchSeries('RIG_TOTUS_1', apiKey, 2),
+      fetchSeries('RIG_TOTPB_1', apiKey, 2),
+      fetchSeries('RIG_TOTEF_1', apiKey, 2),
+    ]);
 
-    if (!response.ok) throw new Error(`BH CSV HTTP ${response.status}`);
-    const text = await response.text();
-    const rows = parseCSV(text);
+    const us      = usData.status      === 'fulfilled' ? usData.value      : null;
+    const permian = permianData.status === 'fulfilled' ? permianData.value : null;
+    const ef      = efData.status      === 'fulfilled' ? efData.value      : null;
 
-    let weekEnding = null;
-    let usTotal = null, usPrior = null;
-    let permian = null, permianPrior = null;
-    let eagleFord = null, eagleFordPrior = null;
-
-    for (const row of rows) {
-      const first = row[0] || '';
-
-      if (!weekEnding && /week\s+ending|w\/e/i.test(first)) {
-        for (const col of row) {
-          const d = new Date(col);
-          if (!isNaN(d.getTime()) && d.getFullYear() > 2020) {
-            weekEnding = d.toISOString().split('T')[0];
-            break;
-          }
-        }
-      }
-
-      const count = parseInt(row[1]);
-      const prior = parseInt(row[2]);
-      if (isNaN(count)) continue;
-
-      if (/^u\.?s\.?\s*(total)?$/i.test(first.trim())) {
-        usTotal = count; usPrior = isNaN(prior) ? null : prior;
-      } else if (/permian/i.test(first)) {
-        permian = count; permianPrior = isNaN(prior) ? null : prior;
-      } else if (/eagle\s*ford/i.test(first)) {
-        eagleFord = count; eagleFordPrior = isNaN(prior) ? null : prior;
-      }
-    }
-
-    if (usTotal === null) throw new Error('Could not parse rig count — BH format may have changed');
+    const weekEnding = us?.[0]?.period ?? null;
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=3600');
     return res.status(200).json({
       week_ending:       weekEnding,
-      us_total:          usTotal,
-      permian:           permian,
-      eagle_ford:        eagleFord,
-      us_total_change:   usPrior !== null ? usTotal - usPrior : null,
-      permian_change:    permianPrior !== null ? permian - permianPrior : null,
-      eagle_ford_change: eagleFordPrior !== null ? eagleFord - eagleFordPrior : null,
+      us_total:          us      ? parseInt(us[0].value)      : null,
+      permian:           permian ? parseInt(permian[0].value) : null,
+      eagle_ford:        ef      ? parseInt(ef[0].value)      : null,
+      us_total_change:   us      && us[1]      ? parseInt(us[0].value)      - parseInt(us[1].value)      : null,
+      permian_change:    permian && permian[1] ? parseInt(permian[0].value) - parseInt(permian[1].value) : null,
+      eagle_ford_change: ef      && ef[1]      ? parseInt(ef[0].value)      - parseInt(ef[1].value)      : null,
     });
 
   } catch (err) {
