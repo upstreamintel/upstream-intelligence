@@ -933,7 +933,7 @@ const SOURCES = [
     bias:'Pro-Kremlin', biasColor:'#2563A8'
   },
   {
-    id:'gw', name:'Google News — World', color:'#1A7A52', site:'https://news.google.com',
+    id:'gw', name:'Google News — World', shortName:'Google News', color:'#1A7A52', site:'https://news.google.com',
     url:'https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en',
     fallback: null,
     bias:'Aggregator', biasColor:'#888780'
@@ -969,19 +969,19 @@ const SOURCES = [
     bias:'Center', biasColor:'#888780'
   },
   {
-    id:'rp', name:'Ron Paul Institute', color:'#B8860B', site:'https://ronpaulinstitute.org',
+    id:'rp', name:'Ron Paul Institute', shortName:'Ron Paul', color:'#B8860B', site:'https://ronpaulinstitute.org',
     url:'https://ronpaulinstitute.org/feed/',
     fallback:'https://ronpaulinstitute.org/feed/rss/',
     bias:'Libertarian', biasColor:'#B8860B'
   },
   {
-    id:'cnn', name:'CNN — World', color:'#CC0000', site:'https://www.cnn.com/world',
+    id:'cnn', name:'CNN — World', shortName:'CNN World', color:'#CC0000', site:'https://www.cnn.com/world',
     url:'http://rss.cnn.com/rss/cnn_world.rss',
     fallback:'http://rss.cnn.com/rss/cnn_allpolitics.rss',
     bias:'Center-Left', biasColor:'#2C6B8B'
   },
   {
-    id:'fox', name:'Fox News — World', color:'#003366', site:'https://www.foxnews.com/world',
+    id:'fox', name:'Fox News — World', shortName:'Fox News', color:'#003366', site:'https://www.foxnews.com/world',
     url:'https://moxie.foxnews.com/google-publisher/world.xml',
     fallback:'https://moxie.foxnews.com/google-publisher/politics.xml',
     bias:'Right', biasColor:'#C0392B'
@@ -999,7 +999,7 @@ const SOURCES = [
     bias:'Anti-Interventionist', biasColor:'#4A4A4A'
   },
   {
-    id:'ogj', name:'Oil & Gas Journal', color:'#8B0000', site:'https://www.ogj.com',
+    id:'ogj', name:'Oil & Gas Journal', shortName:'OG Journal', color:'#8B0000', site:'https://www.ogj.com',
     url:'https://www.ogj.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22drilling-production%22%7D',
     fallback:'https://www.ogj.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22exploration-development%22%7D',
     bias:'Industry / Trade', biasColor:'#4A7C3F'
@@ -1017,25 +1017,25 @@ const SOURCES = [
     bias:'Sports', biasColor:'#CC0000'
   },
   {
-    id:'hc', name:'Houston Chronicle', color:'#00529B', site:'https://www.houstonchronicle.com',
+    id:'hc', name:'Houston Chronicle', shortName:'Houston Chr.', color:'#00529B', site:'https://www.houstonchronicle.com',
     url:'https://www.chron.com/rss/feed/News-270.php',
     fallback:'https://www.chron.com/rss/',
     bias:'Local News', biasColor:'#4A7C8B'
   },
   {
-    id:'abc13', name:'ABC13 Houston', color:'#0B5EA8', site:'https://abc13.com',
+    id:'abc13', name:'ABC13 Houston', shortName:'ABC13', color:'#0B5EA8', site:'https://abc13.com',
     url:'https://abc13.com/feed',
     fallback:'https://abc13.com/feed/',
     bias:'Local News', biasColor:'#4A7C8B'
   },
   {
-    id:'kris6', name:'KRIS 6 News (Corpus Christi)', color:'#1A6B3A', site:'https://www.kristv.com',
+    id:'kris6', name:'KRIS 6 News (Corpus Christi)', shortName:'KRIS 6', color:'#1A6B3A', site:'https://www.kristv.com',
     url:'https://www.kristv.com/news.rss',
     fallback:'https://www.kristv.com/feed',
     bias:'Local News', biasColor:'#4A7C8B'
   },
   {
-    id:'eia', name:'EIA Today in Energy', color:'#1F6F8B', site:'https://www.eia.gov/todayinenergy',
+    id:'eia', name:'EIA Today in Energy', shortName:'EIA Energy', color:'#1F6F8B', site:'https://www.eia.gov/todayinenergy',
     url:'https://www.eia.gov/rss/todayinenergy.xml',
     fallback: null,
     bias:'Government / Data', biasColor:'#1F6F8B'
@@ -1047,13 +1047,13 @@ const SOURCES = [
     bias:'Industry / Data', biasColor:'#E87722'
   },
   {
-    id:'og360', name:'Oil & Gas 360', color:'#2E4057', site:'https://www.oilandgas360.com',
+    id:'og360', name:'Oil & Gas 360', shortName:'OG 360', color:'#2E4057', site:'https://www.oilandgas360.com',
     url:'https://www.oilandgas360.com/feed',
     fallback: null,
     bias:'Industry / Trade', biasColor:'#4A7C3F'
   },
   {
-    id:'pbog', name:'Permian Basin Oil & Gas', color:'#8B4513', site:'https://www.pboilandgasmagazine.com',
+    id:'pbog', name:'Permian Basin Oil & Gas', shortName:'Permian B OG', color:'#8B4513', site:'https://www.pboilandgasmagazine.com',
     url:'https://www.pboilandgasmagazine.com/category/news/feed',
     fallback:'https://www.pboilandgasmagazine.com/feed',
     bias:'Industry / Trade', biasColor:'#4A7C3F'
@@ -1078,14 +1078,14 @@ const SOURCES = [
     requiresProxy: true
   },
   {
-    id:'mem', name:'Middle East Monitor', color:'#2C6B3A', site:'https://www.middleeastmonitor.com',
+    id:'mem', name:'Middle East Monitor', shortName:'ME Monitor', color:'#2C6B3A', site:'https://www.middleeastmonitor.com',
     url:'https://www.middleeastmonitor.com/feed/',
     fallback:'https://www.middleeastmonitor.com/category/news/feed/',
     bias:'Pro-Palestinian', biasColor:'#2C6B3A',
     requiresProxy: true
   },
   {
-    id:'mee', name:'Middle East Eye', color:'#1A3A6B', site:'https://www.middleeasteye.net',
+    id:'mee', name:'Middle East Eye', shortName:'ME Eye', color:'#1A3A6B', site:'https://www.middleeasteye.net',
     url:'https://www.middleeasteye.net/rss',
     fallback:'https://www.middleeasteye.net/taxonomy/term/2/feed',
     bias:'Independent / Pro-Palestinian', biasColor:'#1A3A6B',
@@ -2349,7 +2349,8 @@ function sourcePillsHTML(group) {
       const src = SOURCES.find(s => s.id === a.srcId);
       const color = src?.biasColor || a.srcColor || '#888';
       // Abbreviate source name to ~10 chars
-      const name = a.srcName.length > 12 ? a.srcName.slice(0, 11) + '…' : a.srcName;
+      const src2 = SOURCES.find(s => s.id === a.srcId);
+      const name = src2?.shortName || (a.srcName.length > 12 ? a.srcName.slice(0, 11) + '…' : a.srcName);
       return '<span class="cluster-source-pill" style="background:' + color + '18;color:' + color + ';border-color:' + color + '30;" title="' + a.srcName + '">' + name + '</span>';
     }).join('') +
   '</div>';
@@ -2408,7 +2409,6 @@ function renderClusters() {
           '<span class="cluster-source-count">' + group.length + ' sources</span>' +
           '<span>' + timeStr + '</span>' +
         '</div>' +
-        biasSpectrumHTML(group) +
         sourcePillsHTML(group) +
         '<div class="cluster-headlines">' + visibleHTML + moreToggle + '</div>' +
       '</div>',
