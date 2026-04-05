@@ -118,9 +118,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: none;
+    border-top: 1px solid var(--border-light);
     background: var(--surface);
     flex-wrap: wrap;
+    position: sticky;
+    top: 57px;
+    z-index: 99;
   }
   .filter-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-right: 4px; }
   .pill {
@@ -321,25 +325,25 @@
   /* ── Breaking news bar ── */
   .breaking-bar {
     display: none;
-    background: #C0392B;
+    background: #7B1F1F;
     color: #fff;
-    padding: 9px 32px;
+    padding: 7px 32px;
     align-items: center;
     gap: 12px;
     font-size: 12px;
     position: relative;
     z-index: 90;
-    animation: breakingPulse 2s ease-in-out 3;
+    animation: breakingFadeIn 0.3s ease;
   }
   .breaking-bar.visible { display: flex; }
-  @keyframes breakingPulse {
-    0%, 100% { background: #C0392B; }
-    50% { background: #E74C3C; }
+  @keyframes breakingFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
   .breaking-label {
     font-size: 10px; font-weight: 600;
     letter-spacing: 0.1em; text-transform: uppercase;
-    background: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.15);
     padding: 2px 8px; border-radius: 3px;
     white-space: nowrap; flex-shrink: 0;
   }
@@ -360,36 +364,36 @@
   }
   .breaking-dismiss {
     background: none; border: none; color: #fff;
-    font-size: 16px; cursor: pointer; opacity: 0.7;
+    font-size: 16px; cursor: pointer; opacity: 0.5;
     padding: 0 0 0 8px; flex-shrink: 0; line-height: 1;
   }
-  .breaking-dismiss:hover { opacity: 1; }
+  .breaking-dismiss:hover { opacity: 0.9; }
   .breaking-more {
-    background: rgba(255,255,255,0.2); border: none; color: #fff;
+    background: rgba(255,255,255,0.15); border: none; color: #fff;
     font-size: 11px; font-weight: 600; cursor: pointer;
     padding: 2px 8px; border-radius: 3px; white-space: nowrap;
     flex-shrink: 0; transition: background 0.15s;
   }
-  .breaking-more:hover { background: rgba(255,255,255,0.35); }
+  .breaking-more:hover { background: rgba(255,255,255,0.25); }
   .breaking-dropdown {
     display: none;
     position: fixed; left: 0; right: 0;
-    background: #922B21; border-top: 1px solid rgba(255,255,255,0.15);
+    background: #5C1717; border-top: 1px solid rgba(255,255,255,0.1);
     z-index: 999; max-height: 320px; overflow-y: auto;
     box-shadow: 0 4px 16px rgba(0,0,0,0.2);
   }
   .breaking-dropdown.open { display: block; }
   .breaking-drop-item {
     display: flex; align-items: flex-start; gap: 10px;
-    padding: 9px 32px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 9px 32px; border-bottom: 1px solid rgba(255,255,255,0.08);
     text-decoration: none; color: #fff; transition: background 0.1s;
   }
-  .breaking-drop-item:hover { background: rgba(255,255,255,0.1); }
+  .breaking-drop-item:hover { background: rgba(255,255,255,0.08); }
   .breaking-drop-item:last-child { border-bottom: none; }
   .breaking-drop-title { font-size: 12px; flex: 1; line-height: 1.4; }
   .breaking-drop-meta { font-size: 11px; opacity: 0.65; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
   @media (max-width: 600px) {
-    .breaking-bar { padding: 9px 16px; }
+    .breaking-bar { padding: 7px 16px; }
     .breaking-drop-item { padding: 9px 16px; }
   }
 
@@ -701,16 +705,16 @@
 
   .market-label {
     font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.07em;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #6B6760;
+    color: #C8C4BE;
   }
   .market-price {
     font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    color: #F7F5F0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #FFFFFF;
     letter-spacing: 0.01em;
   }
   .market-change {
@@ -811,38 +815,6 @@
   <button class="verse-pill-btn" id="verse-pill-btn" onclick="toggleVersePill()">✦ Verse</button>
 </div>
 
-<div class="market-strip" id="market-strip">
-  <!-- WTI -->
-  <div class="market-item">
-    <span class="market-label">WTI</span>
-    <span class="market-price" id="ms-wti-price"><span class="market-loading">⋯</span></span>
-    <span class="market-change flat" id="ms-wti-chg"></span>
-  </div>
-  <!-- Brent -->
-  <div class="market-item">
-    <span class="market-label">Brent</span>
-    <span class="market-price" id="ms-brent-price"><span class="market-loading">⋯</span></span>
-    <span class="market-change flat" id="ms-brent-chg"></span>
-  </div>
-  <!-- Nat Gas -->
-  <div class="market-item">
-    <span class="market-label">Nat Gas</span>
-    <span class="market-price" id="ms-ng-price"><span class="market-loading">⋯</span></span>
-    <span class="market-change flat" id="ms-ng-chg"></span>
-  </div>
-  <!-- EIA Inventory -->
-  <div class="market-item">
-    <span class="market-label">EIA Crude</span>
-    <span class="market-price" id="ms-eia-label"><span class="market-loading">⋯</span></span>
-    <span class="eia-pill flat" id="ms-eia-pill"></span>
-  </div>
-
-  <!-- Timestamp -->
-  <div class="market-item" style="margin-left:auto;border-right:none;">
-    <span class="market-label" id="ms-updated" style="color:#3A3835;"></span>
-  </div>
-</div>
-
 <div class="filter-bar">
   <span class="filter-label">Filter</span>
   <button class="pill active" data-f="all"      onclick="setFilter('all')">All</button>
@@ -877,6 +849,37 @@
       </div>
       <div class="weather-pop-status" id="weather-pop-status"></div>
     </div>
+  </div>
+</div>
+
+<div class="market-strip" id="market-strip">
+  <!-- WTI -->
+  <div class="market-item">
+    <span class="market-label">WTI</span>
+    <span class="market-price" id="ms-wti-price"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-wti-chg"></span>
+  </div>
+  <!-- Brent -->
+  <div class="market-item">
+    <span class="market-label">Brent</span>
+    <span class="market-price" id="ms-brent-price"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-brent-chg"></span>
+  </div>
+  <!-- Nat Gas -->
+  <div class="market-item">
+    <span class="market-label">Nat Gas</span>
+    <span class="market-price" id="ms-ng-price"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-ng-chg"></span>
+  </div>
+  <!-- EIA Inventory -->
+  <div class="market-item">
+    <span class="market-label">EIA Crude</span>
+    <span class="market-price" id="ms-eia-label"><span class="market-loading">⋯</span></span>
+    <span class="eia-pill flat" id="ms-eia-pill"></span>
+  </div>
+  <!-- Timestamp -->
+  <div class="market-item" style="margin-left:auto;border-right:none;">
+    <span class="market-label" id="ms-updated" style="color:#C8C4BE;"></span>
   </div>
 </div>
 
@@ -2017,10 +2020,6 @@ function renderBreakingBar() {
   }
 
   bar.classList.add('visible');
-  // Force reflow to restart the pulse animation each time the bar updates
-  bar.style.animation = 'none';
-  bar.offsetHeight;
-  bar.style.animation = '';
 }
 
 // Full scan — walks all loaded feeds and finds articles that are:
