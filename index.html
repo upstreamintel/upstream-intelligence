@@ -636,6 +636,97 @@
     white-space: nowrap; flex-shrink: 0;
   }
   @media (max-width: 600px) { .verse-bar { padding: 9px 16px; } }
+
+  /* ── Market data strip ── */
+  .market-strip {
+    background: #1A1916;
+    border-bottom: 1px solid #2C2A26;
+    padding: 0 32px;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    min-height: 36px;
+  }
+  .market-strip::-webkit-scrollbar { display: none; }
+
+  .market-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-right: 1px solid #2C2A26;
+    white-space: nowrap;
+    min-height: 36px;
+    flex-shrink: 0;
+  }
+  .market-item:first-child { padding-left: 0; }
+  .market-item:last-child  { border-right: none; }
+
+  .market-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #6B6760;
+  }
+  .market-price {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #F7F5F0;
+    letter-spacing: 0.01em;
+  }
+  .market-change {
+    font-size: 11px;
+    font-weight: 400;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .market-change.up   { color: #2ECC71; background: rgba(46,204,113,0.12); }
+  .market-change.down { color: #E74C3C; background: rgba(231,76,60,0.12);  }
+  .market-change.flat { color: #6B6760; background: transparent; }
+
+  .market-divider {
+    width: 1px;
+    background: #2C2A26;
+    align-self: stretch;
+  }
+
+  /* EIA inventory pill */
+  .eia-pill {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.02em;
+  }
+  .eia-pill.draw  { color: #2ECC71; background: rgba(46,204,113,0.12); }
+  .eia-pill.build { color: #E74C3C; background: rgba(231,76,60,0.12);  }
+
+  /* Rig count mini-sparkline */
+  .rig-spark {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+  }
+  .rig-spark-bar {
+    width: 3px;
+    background: #4A4A4A;
+    border-radius: 1px;
+    transition: background 0.2s;
+  }
+  .rig-spark-bar.current { background: #F7F5F0; }
+
+  .market-loading { color: #4A4A4A; font-size: 11px; }
+  .market-error   { color: #6B3030; font-size: 11px; }
+
+  @media (max-width: 600px) {
+    .market-strip { padding: 0 16px; }
+    .market-item  { padding: 0 12px; }
+  }
 </style>
 </head>
 <body>
@@ -680,6 +771,47 @@
   <span class="verse-label">✦ Verse of the Day</span>
   <span class="verse-text" id="verse-text">Loading…</span>
   <span class="verse-ref" id="verse-ref"></span>
+</div>
+
+<div class="market-strip" id="market-strip">
+  <!-- WTI -->
+  <div class="market-item">
+    <span class="market-label">WTI</span>
+    <span class="market-price" id="ms-wti-price"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-wti-chg"></span>
+  </div>
+  <!-- Brent -->
+  <div class="market-item">
+    <span class="market-label">Brent</span>
+    <span class="market-price" id="ms-brent-price"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-brent-chg"></span>
+  </div>
+  <!-- EIA Inventory -->
+  <div class="market-item">
+    <span class="market-label">EIA Crude</span>
+    <span class="market-price" id="ms-eia-label"><span class="market-loading">⋯</span></span>
+    <span class="eia-pill flat" id="ms-eia-pill"></span>
+  </div>
+  <!-- BH Rig Count -->
+  <div class="market-item">
+    <span class="market-label">US Rigs</span>
+    <span class="market-price" id="ms-rig-us"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-rig-us-chg"></span>
+  </div>
+  <div class="market-item">
+    <span class="market-label">Permian</span>
+    <span class="market-price" id="ms-rig-perm"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-rig-perm-chg"></span>
+  </div>
+  <div class="market-item">
+    <span class="market-label">Eagle Ford</span>
+    <span class="market-price" id="ms-rig-ef"><span class="market-loading">⋯</span></span>
+    <span class="market-change flat" id="ms-rig-ef-chg"></span>
+  </div>
+  <!-- Timestamp -->
+  <div class="market-item" style="margin-left:auto;border-right:none;">
+    <span class="market-label" id="ms-updated" style="color:#3A3835;"></span>
+  </div>
 </div>
 
 <div class="filter-bar">
@@ -886,6 +1018,53 @@ const SOURCES = [
     bias:'Industry / Trade', biasColor:'#4A7C3F'
   },
 
+  // ── Previously-blocked sources — require USE_VERCEL_PROXY = true ──────────
+  // These feeds are geo-blocked, OFAC-flagged, or strip auth headers through
+  // browser-side proxies. They work fine server-to-server via the Vercel proxy.
+  // They are hidden by default until you flip USE_VERCEL_PROXY to true.
+  {
+    id:'xh', name:'Xinhua News', color:'#CC0000', site:'https://english.news.cn',
+    url:'https://english.news.cn/home/rss/china.xml',
+    fallback:'http://www.xinhuanet.com/english/rss/chinarss.xml',
+    bias:'Chinese State Media', biasColor:'#CC0000',
+    requiresProxy: true
+  },
+  {
+    id:'cgtn', name:'CGTN', color:'#C0392B', site:'https://www.cgtn.com',
+    url:'https://www.cgtn.com/subscribe/rss/section/world.xml',
+    fallback:'https://www.cgtn.com/rss/news.xml',
+    bias:'Chinese State Media', biasColor:'#CC0000',
+    requiresProxy: true
+  },
+  {
+    id:'tasnim', name:'Tasnim News', color:'#1A5C8B', site:'https://www.tasnimnews.com',
+    url:'https://www.tasnimnews.com/en/rss/feed/0/8/0',
+    fallback:'https://www.tasnimnews.com/en/rss',
+    bias:'Pro-Iran / IRGC-linked', biasColor:'#1A5C8B',
+    requiresProxy: true
+  },
+  {
+    id:'mem', name:'Middle East Monitor', color:'#2C6B3A', site:'https://www.middleeastmonitor.com',
+    url:'https://www.middleeastmonitor.com/feed/',
+    fallback:'https://www.middleeastmonitor.com/category/news/feed/',
+    bias:'Pro-Palestinian', biasColor:'#2C6B3A',
+    requiresProxy: true
+  },
+  {
+    id:'mee', name:'Middle East Eye', color:'#1A3A6B', site:'https://www.middleeasteye.net',
+    url:'https://www.middleeasteye.net/rss',
+    fallback:'https://www.middleeasteye.net/taxonomy/term/2/feed',
+    bias:'Independent / Pro-Palestinian', biasColor:'#1A3A6B',
+    requiresProxy: true
+  },
+  {
+    id:'ev', name:'Energy Voice', color:'#E87722', site:'https://www.energyvoice.com',
+    url:'https://www.energyvoice.com/feed/',
+    fallback:'https://www.energyvoice.com/category/oilandgas/feed/',
+    bias:'Industry / Trade (UK)', biasColor:'#4A7C3F',
+    requiresProxy: true
+  },
+
 ];
 
 const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat'];
@@ -985,8 +1164,47 @@ function loadPrevLinks() {
 function savePrevLinks(s) {
   try { localStorage.setItem(PREV_KEY, JSON.stringify([...s])); } catch(e) {}
 }
+// ── Proxy configuration ──────────────────────────────────────────────────
+// Primary: your own Vercel edge proxy — no rate limits, no blocked domains,
+// no CORS issues. Edit this URL after deploying to Vercel.
+//
+// To find your URL: Vercel dashboard → your project → Settings → Domains
+// It will look like:  https://upstream-intelligence.vercel.app/api/rss
+// Or your custom domain if you set one up.
+const VERCEL_PROXY = 'https://upstream-intelligence.vercel.app/api/rss';
+
+// Set to true once you've deployed to Vercel and confirmed /api/rss is live.
+// When false, falls back to the public proxy chain (old behavior).
+const USE_VERCEL_PROXY = false;  // ← flip to true after Vercel deploy
+
 // Three independent proxy strategies tried in order per feed
-const PROXY_STRATEGIES = [
+const PROXY_STRATEGIES = USE_VERCEL_PROXY
+  ? [
+      // Vercel proxy — primary, handles all sources including previously blocked ones
+      feedUrl => ({
+        url: `${VERCEL_PROXY}?url=${encodeURIComponent(feedUrl)}`,
+        parse: async res => {
+          const j = await res.json();
+          if (!Array.isArray(j) || !j.length) throw new Error('empty');
+          return j;  // already shaped as [{title, link, pubDate, desc}]
+        }
+      }),
+      // Fallback 1: rss2json (in case Vercel is down)
+      feedUrl => ({
+        url: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
+        parse: async res => {
+          const j = await res.json();
+          if (j.status !== 'ok' || !j.items?.length) throw new Error('empty');
+          return j.items.map(i => ({
+            title: i.title || '',
+            link: i.link || i.url || '',
+            pubDate: i.pubDate || i.published || i.date || i.updated || '',
+            desc: (i.description || i.content || '').replace(/<[^>]+>/g, ''),
+          }));
+        }
+      }),
+    ]
+  : [
   // 1. rss2json — clean URL only, no extra params (unknown params break free tier)
   feedUrl => ({
     url: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
@@ -1103,6 +1321,15 @@ function setFilter(f) {
 }
 
 async function fetchFeed(src) {
+  // Skip sources that need Vercel proxy when it's not yet enabled
+  if (src.requiresProxy && !USE_VERCEL_PROXY) {
+    store[src.id] = { state: 'error', items: [], proxyRequired: true };
+    renderCard(src);
+    updateTotalCount();
+    updateSourceBtn();
+    return;
+  }
+
   store[src.id] = { state: 'loading', items: [] };
   renderCard(src);
 
@@ -1189,10 +1416,13 @@ function renderCard(src) {
   if (data.state === 'loading') {
     body = `<div class="state-msg">Loading…</div>`;
   } else if (data.state === 'error') {
-    body = `<div class="state-msg error">
-      Could not load feed.<br>
-      <a href="${src.site}" target="_blank">Open ${src.name} directly ↗</a>
-    </div>`;
+    const msg = data.proxyRequired
+      ? `<div class="state-msg error">Requires Vercel proxy.<br><small style="color:var(--text-muted)">Set USE_VERCEL_PROXY = true after deploying.</small></div>`
+      : `<div class="state-msg error">
+          Could not load feed.<br>
+          <a href="${src.site}" target="_blank">Open ${src.name} directly ↗</a>
+        </div>`;
+    body = msg;
   } else {
     body = filtered.map(buildArticleHTML).join('');
   }
@@ -2276,8 +2506,126 @@ function initWeather() {
   setInterval(fetchWeather, 60 * 60 * 1000);
 }
 
+// ── Market data strip ─────────────────────────────────────────────────────
+// Calls the three Vercel API endpoints and populates the dark ticker strip.
+// Falls back gracefully when endpoints aren't deployed yet.
+
+// Update this to match your actual Vercel deployment URL
+const VERCEL_BASE = 'https://upstream-intelligence.vercel.app';
+
+function fmtChange(val, unit = '') {
+  if (val === null || val === undefined || isNaN(val)) return { text: '—', cls: 'flat' };
+  const sign = val > 0 ? '+' : '';
+  const cls  = val > 0 ? 'up' : val < 0 ? 'down' : 'flat';
+  return { text: `${sign}${val.toFixed(2)}${unit}`, cls };
+}
+
+function fmtChangeInt(val, unit = '') {
+  if (val === null || val === undefined || isNaN(val)) return { text: '—', cls: 'flat' };
+  const sign = val > 0 ? '+' : '';
+  const cls  = val > 0 ? 'up' : val < 0 ? 'down' : 'flat';
+  return { text: `${sign}${val}${unit}`, cls };
+}
+
+function setMarketCell(priceId, chgId, price, change, pct) {
+  const priceEl = document.getElementById(priceId);
+  const chgEl   = document.getElementById(chgId);
+  if (priceEl) priceEl.innerHTML = price !== null ? `$${price.toFixed(2)}` : '—';
+  if (chgEl && change !== null) {
+    const c = fmtChange(change);
+    const p = fmtChange(pct, '%');
+    chgEl.textContent = `${c.text} (${p.text})`;
+    chgEl.className = `market-change ${c.cls}`;
+  }
+}
+
+function setRigCell(priceId, chgId, count, change) {
+  const priceEl = document.getElementById(priceId);
+  const chgEl   = document.getElementById(chgId);
+  if (priceEl) priceEl.innerHTML = count !== null ? String(count) : '—';
+  if (chgEl && change !== null) {
+    const c = fmtChangeInt(change);
+    chgEl.textContent = c.text;
+    chgEl.className = `market-change ${c.cls}`;
+  }
+}
+
+async function fetchPrices() {
+  try {
+    const res = await fetch(`${VERCEL_BASE}/api/prices`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { wti, brent } = await res.json();
+    setMarketCell('ms-wti-price',   'ms-wti-chg',   wti.price,   wti.change,   wti.pct);
+    setMarketCell('ms-brent-price', 'ms-brent-chg', brent.price, brent.change, brent.pct);
+    const now = new Date();
+    const t = now.toLocaleString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+    const el = document.getElementById('ms-updated');
+    if (el) el.textContent = `Prices as of ${t}`;
+  } catch(e) {
+    const ids = ['ms-wti-price','ms-wti-chg','ms-brent-price','ms-brent-chg'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = '<span class="market-error">—</span>'; });
+  }
+}
+
+async function fetchEIA() {
+  try {
+    const res = await fetch(`${VERCEL_BASE}/api/eia`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    const delta  = d.crude_build_draw;
+    const isDraw = delta < 0;
+    const label  = document.getElementById('ms-eia-label');
+    const pill   = document.getElementById('ms-eia-pill');
+    if (label) {
+      // Show report date (Wednesday)
+      const dt = d.report_date ? new Date(d.report_date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
+      label.textContent = dt ? `Wk of ${dt}` : 'Latest';
+    }
+    if (pill) {
+      const sign = delta > 0 ? '+' : '';
+      pill.textContent = `${sign}${delta.toFixed(1)} MMbbl ${isDraw ? 'draw' : 'build'}`;
+      pill.className   = `eia-pill ${isDraw ? 'draw' : 'build'}`;
+    }
+  } catch(e) {
+    const el = document.getElementById('ms-eia-label');
+    if (el) el.innerHTML = '<span class="market-error">—</span>';
+  }
+}
+
+async function fetchRigCount() {
+  try {
+    const res = await fetch(`${VERCEL_BASE}/api/rigcount`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    setRigCell('ms-rig-us',   'ms-rig-us-chg',   d.us_total,  d.us_total_change);
+    setRigCell('ms-rig-perm', 'ms-rig-perm-chg', d.permian,   d.permian_change);
+    setRigCell('ms-rig-ef',   'ms-rig-ef-chg',   d.eagle_ford, d.eagle_ford_change);
+  } catch(e) {
+    ['ms-rig-us','ms-rig-perm','ms-rig-ef'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<span class="market-error">—</span>';
+    });
+  }
+}
+
+function initMarketStrip() {
+  // Only fetch if Vercel proxy is deployed
+  if (!USE_VERCEL_PROXY) {
+    const strip = document.getElementById('market-strip');
+    if (strip) strip.style.display = 'none';
+    return;
+  }
+  // Fire all three in parallel — independent failures don't block each other
+  fetchPrices();
+  fetchEIA();
+  fetchRigCount();
+  // Refresh prices every 15 minutes
+  setInterval(fetchPrices, 15 * 60 * 1000);
+}
+
 initWeather();
 initVerse();
+initMarketStrip();
 </script>
 </body>
 </html>
