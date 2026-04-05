@@ -893,6 +893,7 @@
   <div class="market-item">
     <span class="market-label">EIA Crude</span>
     <span class="market-price" id="ms-eia-label"><span class="market-loading">⋯</span></span>
+    <span class="market-price" id="ms-eia-stocks" style="font-size:12px;color:#C8C4BE;font-weight:400;"></span>
     <span class="eia-pill flat" id="ms-eia-pill"></span>
   </div>
   <!-- Timestamp -->
@@ -2741,9 +2742,13 @@ async function fetchEIA() {
       const dt = d.report_date ? new Date(d.report_date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
       label.textContent = dt ? `Wk of ${dt}` : 'Latest';
     }
+    const stocks = document.getElementById('ms-eia-stocks');
+    if (stocks && d.total_stocks != null) {
+      stocks.textContent = d.total_stocks.toFixed(1) + ' MMbbl';
+    }
     if (pill) {
       const sign = delta > 0 ? '+' : '';
-      pill.textContent = `${sign}${delta.toFixed(1)} MMbbl ${isDraw ? 'draw' : 'build'}`;
+      pill.textContent = `${sign}${delta.toFixed(1)} w/w ${isDraw ? 'draw' : 'build'}`;
       pill.className   = `eia-pill ${isDraw ? 'draw' : 'build'}`;
     }
   } catch(e) {
