@@ -2200,14 +2200,15 @@ function buildClusters() {
   const used = new Set();
   const clusters = [];
 
-  // Phase 1: initial greedy clustering (Jaccard >= 0.20 per-article similarity)
+  // Phase 1: initial greedy clustering (Jaccard >= 0.23 per-article similarity)
+  // Raised from 0.20 to reduce false clusters driven by shared proper nouns alone
   for (let i = 0; i < tokenized.length; i++) {
     if (used.has(i)) continue;
     const group = [tokenized[i]];
     used.add(i);
     for (let j = i + 1; j < tokenized.length; j++) {
       if (used.has(j)) continue;
-      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.20);
+      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.23);
       if (similar) {
         const alreadyHasSrc = group.some(g => g.srcId === tokenized[j].srcId);
         if (!alreadyHasSrc) { group.push(tokenized[j]); used.add(j); }
@@ -2250,18 +2251,32 @@ function buildClusters() {
   return mergedClusters.slice(0, 8);
 }
 
-// Use the most recent article's headline as the cluster title — more readable
-// and specific than the word-frequency label it replaces
+// Use the most recent headline as the cluster title, with attribution stripping and trimming
 function clusterTopic(group) {
+  const STRIP_PREFIXES = [
+    /^report[:\s]+/i, /^breaking[:\s]+/i, /^exclusive[:\s]+/i,
+    /^watch[:\s]+/i, /^analysis[:\s]+/i, /^opinion[:\s]+/i,
+    /^update[:\s]+/i, /^developing[:\s]+/i,
+  ];
+
   const withDate = group.filter(a => a.pubDate);
   const mostRecent = withDate.length
     ? [...withDate].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0]
     : group[0];
-  // Trim to ~65 chars at a word boundary
-  const title = mostRecent.title;
-  if (title.length <= 65) return title;
-  const trimmed = title.slice(0, 65);
-  return trimmed.slice(0, trimmed.lastIndexOf(' ')) + '…';
+
+  let title = mostRecent.title;
+
+  // Strip common attribution prefixes
+  for (const prefix of STRIP_PREFIXES) {
+    title = title.replace(prefix, '');
+  }
+  title = title.trim();
+  if (title.length > 0) title = title[0].toUpperCase() + title.slice(1);
+
+  // Trim to ~70 chars at a word boundary
+  if (title.length <= 70) return title;
+  const trimmed = title.slice(0, 70);
+  return trimmed.slice(0, trimmed.lastIndexOf(' ')) + '\u2026';
 }
 
 // Bias order for sorting headlines within a cluster — left to right on the spectrum
@@ -2328,7 +2343,7 @@ function renderClusters() {
   const badge = document.getElementById('trending-collapsed-badge');
   if (badge) badge.textContent = clusters.length + ' stories';
 
-  container.innerHTML = clusters.map(group => {
+  const clusterData = clusters.map(group => {
     const topic = clusterTopic(group);
     const biasSorted = [...group].sort((a, b) => biasRank(a.bias) - biasRank(b.bias));
     const mostRecent = [...group]
@@ -2336,6 +2351,7 @@ function renderClusters() {
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0] || group[0];
     const timeStr = mostRecent?.pubDate ? relTime(mostRecent.pubDate) : '';
     const cardId = 'cluster-' + Math.random().toString(36).slice(2, 7);
+    const topicId = cardId + '-topic';
     const VISIBLE = 5;
 
     const makeHeadlineHTML = function(a) {
@@ -2360,18 +2376,26 @@ function renderClusters() {
         '<button class="cluster-more-btn" onclick="toggleClusterMore(\'' + cardId + '\', this)">+' + extraCount + ' more perspective' + (extraCount > 1 ? 's' : '') + '</button>'
       : '';
 
-    return '<div class="cluster-card">' +
-      '<div class="cluster-topic">' + topic + '</div>' +
-      '<div class="cluster-meta">' +
-        '<span class="cluster-source-count">' + group.length + ' sources</span>' +
-        '<span>' + timeStr + '</span>' +
-      '</div>' +
-      biasSpectrumHTML(group) +
-      coverageBadgeHTML(group) +
-      '<div class="cluster-headlines">' + visibleHTML + moreToggle + '</div>' +
-    '</div>';
-  }).join('');
+    return {
+      html: '<div class="cluster-card">' +
+        '<div class="cluster-topic" id="' + topicId + '">' + topic + '</div>' +
+        '<div class="cluster-meta">' +
+          '<span class="cluster-source-count">' + group.length + ' sources</span>' +
+          '<span>' + timeStr + '</span>' +
+        '</div>' +
+        biasSpectrumHTML(group) +
+        coverageBadgeHTML(group) +
+        '<div class="cluster-headlines">' + visibleHTML + moreToggle + '</div>' +
+      '</div>',
+      topicId,
+      headlines: group.map(a => a.title),
+    };
+  });
+
+  container.innerHTML = clusterData.map(d => d.html).join('');
+
 }
+
 
 loadAll();
 initLayout();
