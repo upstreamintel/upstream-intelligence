@@ -492,6 +492,19 @@
   }
   .cluster-more-btn:hover { background: #d8e4f5; }
 
+  /* ── Cluster source pills ── */
+  .cluster-source-pills {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-bottom: 8px;
+  }
+  .cluster-source-pill {
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 1px 6px; border-radius: 99px;
+    white-space: nowrap; opacity: 0.85;
+    border: 1px solid transparent;
+  }
+
 
   /* ── Manage sources panel ── */
   .manage-btn {
@@ -2330,6 +2343,18 @@ function toggleClusterMore(cardId, btn) {
     : '+' + count + ' more perspective' + (count > 1 ? 's' : '');
 }
 
+function sourcePillsHTML(group) {
+  return '<div class="cluster-source-pills">' +
+    group.map(a => {
+      const src = SOURCES.find(s => s.id === a.srcId);
+      const color = src?.biasColor || a.srcColor || '#888';
+      // Abbreviate source name to ~10 chars
+      const name = a.srcName.length > 12 ? a.srcName.slice(0, 11) + '…' : a.srcName;
+      return '<span class="cluster-source-pill" style="background:' + color + '18;color:' + color + ';border-color:' + color + '30;" title="' + a.srcName + '">' + name + '</span>';
+    }).join('') +
+  '</div>';
+}
+
 function renderClusters() {
   const clusters = buildClusters();
   const section = document.getElementById('trending-section');
@@ -2384,7 +2409,7 @@ function renderClusters() {
           '<span>' + timeStr + '</span>' +
         '</div>' +
         biasSpectrumHTML(group) +
-        coverageBadgeHTML(group) +
+        sourcePillsHTML(group) +
         '<div class="cluster-headlines">' + visibleHTML + moreToggle + '</div>' +
       '</div>',
       topicId,
