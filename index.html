@@ -2402,7 +2402,10 @@ function toggleVersePill() {
   const btn  = document.getElementById('verse-pill-btn');
   const isOpen = card.classList.toggle('open');
   btn.textContent = isOpen ? '✦ Close' : '✦ Verse';
-  try { localStorage.setItem(VERSE_OPEN_KEY, isOpen ? '1' : '0'); } catch(e) {}
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(VERSE_OPEN_KEY, JSON.stringify({ state: isOpen ? '1' : '0', date: today }));
+  } catch(e) {}
 }
 
 function initVerse() {
@@ -2412,10 +2415,19 @@ function initVerse() {
     if (cached?.date === today && cached.text) { renderVerse(cached.text, cached.ref); }
     else { fetchVerse(); }
   } catch(e) { fetchVerse(); }
-  // Auto-open if user had it open last session, or default open on first visit
+  // Auto-open every new day — only stay closed if user dismissed it today
   try {
-    const wasOpen = localStorage.getItem(VERSE_OPEN_KEY);
-    if (wasOpen === null || wasOpen === '1') {
+    const today = new Date().toISOString().slice(0, 10);
+    const raw = localStorage.getItem(VERSE_OPEN_KEY);
+    let closedToday = false;
+    try {
+      const stored = JSON.parse(raw);
+      // New format: { state: '0'|'1', date: 'YYYY-MM-DD' }
+      if (stored?.date === today && stored?.state === '0') closedToday = true;
+    } catch(e) {
+      // Legacy format was plain '0'/'1' string — treat as stale, ignore
+    }
+    if (!closedToday) {
       const card = document.getElementById('verse-card');
       const btn  = document.getElementById('verse-pill-btn');
       if (card) card.classList.add('open');
