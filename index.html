@@ -609,33 +609,68 @@
     text-overflow: ellipsis; max-width: 140px;
   }
 
-  /* ── Bible verse bar ── */
-  .verse-bar {
-    background: #FDFBF7;
-    border-bottom: 1px solid var(--border-light);
-    padding: 10px 32px;
+  /* ── Bible verse floating pill ── */
+  .verse-pill {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 500;
     display: flex;
-    align-items: baseline;
-    gap: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .verse-pill-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 5px 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .verse-pill-btn:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+  .verse-card {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+    padding: 14px 16px;
+    max-width: 320px;
+    animation: verseFadeIn 0.2s ease;
+  }
+  .verse-card.open { display: block; }
+  @keyframes verseFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
   .verse-label {
     font-size: 10px; font-weight: 500;
     letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
+    color: var(--text-muted); display: block; margin-bottom: 7px;
   }
   .verse-text {
     font-family: 'Spectral', serif;
     font-size: 13px; color: var(--text-secondary);
-    line-height: 1.55;
-    font-style: italic;
+    line-height: 1.6; font-style: italic; display: block;
+    margin-bottom: 7px;
   }
   .verse-ref {
     font-family: 'DM Sans', sans-serif;
     font-size: 11px; color: var(--text-muted);
-    white-space: nowrap; flex-shrink: 0;
+    white-space: nowrap; display: block; text-align: right;
   }
-  @media (max-width: 600px) { .verse-bar { padding: 9px 16px; } }
+  @media (max-width: 600px) {
+    .verse-pill { bottom: 14px; right: 14px; }
+    .verse-card { max-width: calc(100vw - 40px); }
+  }
 
   /* ── Market data strip ── */
   .market-strip {
@@ -767,10 +802,13 @@
   </div>
 </div>
 
-<div class="verse-bar" id="verse-bar">
-  <span class="verse-label">✦ Verse of the Day</span>
-  <span class="verse-text" id="verse-text">Loading…</span>
-  <span class="verse-ref" id="verse-ref"></span>
+<div class="verse-pill" id="verse-pill">
+  <div class="verse-card" id="verse-card">
+    <span class="verse-label">✦ Verse of the Day</span>
+    <span class="verse-text" id="verse-text">Loading…</span>
+    <span class="verse-ref" id="verse-ref"></span>
+  </div>
+  <button class="verse-pill-btn" id="verse-pill-btn" onclick="toggleVersePill()">✦ Verse</button>
 </div>
 
 <div class="market-strip" id="market-strip">
@@ -2361,13 +2399,33 @@ function renderVerse(text, ref) {
   document.getElementById('verse-ref').textContent  = ref;
 }
 
+const VERSE_OPEN_KEY = 'upstream_verse_open';
+
+function toggleVersePill() {
+  const card = document.getElementById('verse-card');
+  const btn  = document.getElementById('verse-pill-btn');
+  const isOpen = card.classList.toggle('open');
+  btn.textContent = isOpen ? '✦ Close' : '✦ Verse';
+  try { localStorage.setItem(VERSE_OPEN_KEY, isOpen ? '1' : '0'); } catch(e) {}
+}
+
 function initVerse() {
   try {
     const cached = JSON.parse(localStorage.getItem(VERSE_KEY));
     const today  = new Date().toISOString().slice(0, 10);
-    if (cached?.date === today && cached.text) { renderVerse(cached.text, cached.ref); return; }
+    if (cached?.date === today && cached.text) { renderVerse(cached.text, cached.ref); }
+    else { fetchVerse(); }
+  } catch(e) { fetchVerse(); }
+  // Auto-open if user had it open last session, or default open on first visit
+  try {
+    const wasOpen = localStorage.getItem(VERSE_OPEN_KEY);
+    if (wasOpen === null || wasOpen === '1') {
+      const card = document.getElementById('verse-card');
+      const btn  = document.getElementById('verse-pill-btn');
+      if (card) card.classList.add('open');
+      if (btn)  btn.textContent = '✦ Close';
+    }
   } catch(e) {}
-  fetchVerse();
 }
 
 // ── Weather widget (Open-Meteo) ──
