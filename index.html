@@ -966,20 +966,14 @@ const SOURCES = [
     id:'pt', name:'PressTV', color:'#1A5C8B', site:'https://www.presstv.ir',
     url:'https://www.presstv.ir/rss.xml',
     fallback:'https://www.presstv.ir/RSS',
-    bias:'Pro-Iran State', biasColor:'#1A5C8B'
+    bias:'Pro-Iran State', biasColor:'#1A5C8B',
+    requiresProxy: true
   },
   {
     id:'ha', name:'Jerusalem Post', shortName:'Jerusalem Post', color:'#5C3D8B', site:'https://www.jpost.com',
     url:'https://www.jpost.com/rss/rssfeedsisraelnews.aspx',
     fallback:'https://www.jpost.com/rss/rssfeedsheadlines.aspx',
     bias:'Center-Right / Israel', biasColor:'#2C6B8B'
-  },
-  {
-    id:'972', name:'+972 Magazine', shortName:'+972 Mag', color:'#2C6B3A', site:'https://972mag.com',
-    url:'https://972mag.com/feed',
-    fallback:'https://972mag.com/feed/rss/',
-    bias:'Left / Critical Israel', biasColor:'#2C6B8B',
-    requiresProxy: true
   },
   {
     id:'yf', name:'MarketWatch', color:'#6001D2', site:'https://www.marketwatch.com', // id:'yf' retained from Yahoo Finance — changing would break localStorage prefs
