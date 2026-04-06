@@ -572,6 +572,18 @@
     background: #fff; transition: transform 0.2s; display: block;
   }
   .src-toggle.on .src-toggle-knob { transform: translateX(12px); }
+  .group-header-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px 4px;
+    border-top: 1px solid var(--border-light);
+    margin-top: 4px;
+  }
+  .group-header-row:first-child { border-top: none; margin-top: 0; }
+  .group-header-label {
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-muted);
+  }
+  .group-header-count { font-size: 11px; color: var(--text-muted); }
 
   /* ── Weather widget ── */
   .weather-widget {
@@ -936,190 +948,220 @@ const SOURCES = [
     id:'zh', name:'ZeroHedge', color:'#C0392B', site:'https://www.zerohedge.com',
     url:'https://cms.zerohedge.com/fullrss2.xml',
     fallback:'https://feeds.feedburner.com/zerohedge/feed',
-    bias:'Far Right', biasColor:'#C0392B'
+    bias:'Far Right', biasColor:'#C0392B', group:'alternative'
   },
   {
     id:'rt', name:'RT News', color:'#2563A8', site:'https://www.rt.com',
     url:'https://www.rt.com/rss/',
     fallback:'https://www.rt.com/rss/news/',
-    bias:'Pro-Kremlin', biasColor:'#2563A8'
+    bias:'Pro-Kremlin', biasColor:'#2563A8',
+    group:'geopolitical'
   },
   {
     id:'gw', name:'Google News — World', shortName:'Google News', color:'#1A7A52', site:'https://news.google.com',
     url:'https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en',
     fallback: null,
-    bias:'Aggregator', biasColor:'#888780'
+    bias:'Aggregator', biasColor:'#888780',
+    group:'geopolitical'
   },
   {
     id:'aj', name:'Al Jazeera', color:'#8B1A1A', site:'https://www.aljazeera.com',
     url:'https://www.aljazeera.com/xml/rss/all.xml',
     fallback:'https://www.aljazeera.com/rss/all.xml',
-    bias:'Center-Left', biasColor:'#2C6B8B'
+    bias:'Center-Left', biasColor:'#2C6B8B',
+    group:'geopolitical'
   },
   {
     id:'op', name:'OilPrice.com', color:'#4A7C3F', site:'https://oilprice.com',
     url:'https://oilprice.com/rss/main',
     fallback: null,
-    bias:'Center / Industry', biasColor:'#4A7C3F'
+    bias:'Center / Industry', biasColor:'#4A7C3F',
+    group:'energy'
   },
   {
     id:'pt', name:'PressTV', color:'#1A5C8B', site:'https://www.presstv.ir',
     url:'https://www.presstv.ir/rss.xml',
     fallback:'https://www.presstv.ir/RSS',
     bias:'Pro-Iran State', biasColor:'#1A5C8B',
-    requiresProxy: true
+    requiresProxy: true,
+    group:'geopolitical'
   },
   {
     id:'ha', name:'Jerusalem Post', shortName:'Jerusalem Post', color:'#5C3D8B', site:'https://www.jpost.com',
     url:'https://www.jpost.com/rss/rssfeedsisraelnews.aspx',
     fallback:'https://www.jpost.com/rss/rssfeedsheadlines.aspx',
-    bias:'Center-Right / Israel', biasColor:'#2C6B8B'
+    bias:'Center-Right / Israel', biasColor:'#2C6B8B',
+    group:'geopolitical'
   },
   {
     id:'yf', name:'MarketWatch', color:'#6001D2', site:'https://www.marketwatch.com', // id:'yf' retained from Yahoo Finance — changing would break localStorage prefs
     url:'https://feeds.marketwatch.com/marketwatch/topstories/',
     fallback:'https://feeds.marketwatch.com/marketwatch/marketpulse/',
-    bias:'Center', biasColor:'#888780'
+    bias:'Center', biasColor:'#888780',
+    group:'markets'
   },
   {
     id:'rp', name:'Ron Paul Institute', shortName:'Ron Paul', color:'#B8860B', site:'https://ronpaulinstitute.org',
     url:'https://ronpaulinstitute.org/feed/',
     fallback:'https://ronpaulinstitute.org/feed/rss/',
-    bias:'Libertarian', biasColor:'#B8860B'
+    bias:'Libertarian', biasColor:'#B8860B',
+    group:'alternative'
   },
   {
     id:'cnn', name:'CNN — World', shortName:'CNN World', color:'#CC0000', site:'https://www.cnn.com/world',
     url:'http://rss.cnn.com/rss/cnn_world.rss',
     fallback:'http://rss.cnn.com/rss/cnn_allpolitics.rss',
-    bias:'Center-Left', biasColor:'#2C6B8B'
+    bias:'Center-Left', biasColor:'#2C6B8B',
+    group:'usnews'
   },
   {
     id:'fox', name:'Fox News — World', shortName:'Fox News', color:'#003366', site:'https://www.foxnews.com/world',
     url:'https://moxie.foxnews.com/google-publisher/world.xml',
     fallback:'https://moxie.foxnews.com/google-publisher/politics.xml',
-    bias:'Right', biasColor:'#C0392B'
+    bias:'Right', biasColor:'#C0392B',
+    group:'usnews'
   },
   {
     id:'bbc', name:'BBC World', color:'#B80000', site:'https://www.bbc.com/news/world',
     url:'https://feeds.bbci.co.uk/news/world/rss.xml',
     fallback:'https://feeds.bbci.co.uk/news/rss.xml',
-    bias:'Center-Left', biasColor:'#2C6B8B'
+    bias:'Center-Left', biasColor:'#2C6B8B',
+    group:'geopolitical'
   },
   {
     id:'gz', name:'The Grayzone', color:'#4A4A4A', site:'https://thegrayzone.com',
     url:'https://thegrayzone.com/feed/',
     fallback:'https://thegrayzone.substack.com/feed',
-    bias:'Anti-Interventionist', biasColor:'#4A4A4A'
+    bias:'Anti-Interventionist', biasColor:'#4A4A4A',
+    group:'alternative'
   },
   {
     id:'ogj', name:'Oil & Gas Journal', shortName:'OG Journal', color:'#8B0000', site:'https://www.ogj.com',
     url:'https://www.ogj.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22drilling-production%22%7D',
     fallback:'https://www.ogj.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22exploration-development%22%7D',
-    bias:'Industry / Trade', biasColor:'#4A7C3F'
+    bias:'Industry / Trade', biasColor:'#4A7C3F',
+    group:'energy'
   },
   {
     id:'wo', name:'World Oil', color:'#1A5276', site:'https://www.worldoil.com/news',
     url:'https://www.worldoil.com/rss?feed=topic:eagle+ford',
     fallback:'https://www.worldoil.com/rss?feed=news',
-    bias:'Industry / Trade', biasColor:'#4A7C3F'
+    bias:'Industry / Trade', biasColor:'#4A7C3F',
+    group:'energy'
   },
   {
     id:'espn', name:'ESPN', color:'#CC0000', site:'https://www.espn.com',
     url:'https://www.espn.com/espn/rss/news',
     fallback:'https://feeds.feedburner.com/espn/news',
-    bias:'Sports', biasColor:'#CC0000'
+    bias:'Sports', biasColor:'#CC0000',
+    group:'other'
   },
   {
     id:'hc', name:'Houston Chronicle', shortName:'Houston Chr.', color:'#00529B', site:'https://www.houstonchronicle.com',
     url:'https://www.chron.com/rss/feed/News-270.php',
     fallback:'https://www.chron.com/rss/',
-    bias:'Local News', biasColor:'#4A7C8B'
+    bias:'Local News', biasColor:'#4A7C8B',
+    group:'local'
   },
   {
     id:'abc13', name:'ABC13 Houston', shortName:'ABC13', color:'#0B5EA8', site:'https://abc13.com',
     url:'https://abc13.com/feed',
     fallback:'https://abc13.com/feed/',
-    bias:'Local News', biasColor:'#4A7C8B'
+    bias:'Local News', biasColor:'#4A7C8B',
+    group:'local'
   },
   {
     id:'kris6', name:'KRIS 6 News (Corpus Christi)', shortName:'KRIS 6', color:'#1A6B3A', site:'https://www.kristv.com',
     url:'https://www.kristv.com/news.rss',
     fallback:'https://www.kristv.com/feed',
-    bias:'Local News', biasColor:'#4A7C8B'
+    bias:'Local News', biasColor:'#4A7C8B',
+    group:'local'
   },
   {
     id:'eia', name:'EIA Today in Energy', shortName:'EIA Energy', color:'#1F6F8B', site:'https://www.eia.gov/todayinenergy',
     url:'https://www.eia.gov/rss/todayinenergy.xml',
     fallback: null,
-    bias:'Government / Data', biasColor:'#1F6F8B'
+    bias:'Government / Data', biasColor:'#1F6F8B',
+    group:'energy'
   },
   {
     id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
     url:'https://www.enverus.com/feed',
     fallback: null,
-    bias:'Industry / Data', biasColor:'#E87722'
+    bias:'Industry / Data', biasColor:'#E87722',
+    group:'energy'
   },
   {
     id:'og360', name:'Oil & Gas 360', shortName:'OG 360', color:'#2E4057', site:'https://www.oilandgas360.com',
     url:'https://www.oilandgas360.com/feed',
     fallback: null,
-    bias:'Industry / Trade', biasColor:'#4A7C3F'
+    bias:'Industry / Trade', biasColor:'#4A7C3F',
+    group:'energy'
   },
   {
     id:'pbog', name:'Permian Basin Oil & Gas', shortName:'Permian B OG', color:'#8B4513', site:'https://www.pboilandgasmagazine.com',
     url:'https://www.pboilandgasmagazine.com/category/news/feed',
     fallback:'https://www.pboilandgasmagazine.com/feed',
-    bias:'Industry / Trade', biasColor:'#4A7C3F'
+    bias:'Industry / Trade', biasColor:'#4A7C3F',
+    group:'energy'
   },
 
   {
     id:'s21', name:'Sonar21', color:'#2C3E50', site:'https://sonar21.com',
     url:'https://sonar21.com/feed/',
     fallback:'https://sonar21.com/feed/rss/',
-    bias:'Anti-Interventionist', biasColor:'#4A4A4A'
+    bias:'Anti-Interventionist', biasColor:'#4A4A4A',
+    group:'alternative'
   },
   {
     id:'pol', name:'Politico', color:'#003366', site:'https://www.politico.com',
     url:'https://www.politico.com/rss/politicopicks.xml',
     fallback:'https://www.politico.com/rss/politics08.xml',
-    bias:'Center-Left', biasColor:'#2C6B8B'
+    bias:'Center-Left', biasColor:'#2C6B8B',
+    group:'usnews'
   },
   {
     id:'aw', name:'Antiwar.com', color:'#8B0000', site:'https://www.antiwar.com',
     url:'https://news.antiwar.com/feed/',
     fallback:'https://original.antiwar.com/feed/',
     bias:'Anti-Interventionist', biasColor:'#4A4A4A',
-    requiresProxy: true
+    requiresProxy: true,
+    group:'alternative'
   },
   {
     id:'hill', name:'The Hill', color:'#1A1A6E', site:'https://thehill.com',
     url:'https://thehill.com/feed',
     fallback:'https://thehill.com/rss/syndicator/19110',
-    bias:'Center', biasColor:'#888780'
+    bias:'Center', biasColor:'#888780',
+    group:'usnews'
   },
   {
     id:'axios', name:'Axios', color:'#FF4500', site:'https://www.axios.com',
     url:'https://api.axios.com/feed/',
     fallback:'https://www.axios.com/feed/',
-    bias:'Center', biasColor:'#888780'
+    bias:'Center', biasColor:'#888780',
+    group:'usnews'
   },
   {
     id:'int', name:'The Intercept', color:'#D42B2B', site:'https://theintercept.com',
     url:'https://theintercept.com/feed/rss',
     fallback:'https://theintercept.com/feed/',
-    bias:'Left / Investigative', biasColor:'#2C6B8B'
+    bias:'Left / Investigative', biasColor:'#2C6B8B',
+    group:'alternative'
   },
   {
     id:'dawn', name:'Dawn (Pakistan)', shortName:'Dawn', color:'#006400', site:'https://www.dawn.com',
     url:'https://www.dawn.com/feed',
     fallback:'https://feeds.feedburner.com/dawn-news',
-    bias:'Center / South Asia', biasColor:'#888780'
+    bias:'Center / South Asia', biasColor:'#888780',
+    group:'geopolitical'
   },
   {
     id:'hindu', name:'The Hindu', color:'#8B0000', site:'https://www.thehindu.com',
     url:'https://www.thehindu.com/feeder/default.rss',
     fallback:'https://www.thehindu.com/news/international/feeder/default.rss',
-    bias:'Center-Left / India', biasColor:'#2C6B8B'
+    bias:'Center-Left / India', biasColor:'#2C6B8B',
+    group:'geopolitical'
   },
 
   // ── Previously-blocked sources — require USE_VERCEL_PROXY = true ──────────
@@ -1131,28 +1173,32 @@ const SOURCES = [
     url:'https://english.news.cn/home/rss/china.xml',
     fallback:'http://www.xinhuanet.com/english/rss/chinarss.xml',
     bias:'Chinese State Media', biasColor:'#CC0000',
-    requiresProxy: true
+    requiresProxy: true,
+    group:'geopolitical'
   },
   {
     id:'cgtn', name:'CGTN', color:'#C0392B', site:'https://www.cgtn.com',
     url:'https://www.cgtn.com/subscribe/rss/section/world.xml',
     fallback:'https://www.cgtn.com/rss/news.xml',
     bias:'Chinese State Media', biasColor:'#CC0000',
-    requiresProxy: true
+    requiresProxy: true,
+    group:'geopolitical'
   },
   {
     id:'mem', name:'Middle East Monitor', shortName:'ME Monitor', color:'#2C6B3A', site:'https://www.middleeastmonitor.com',
     url:'https://www.middleeastmonitor.com/feed/',
     fallback:'https://www.middleeastmonitor.com/category/news/feed/',
     bias:'Pro-Palestinian', biasColor:'#2C6B3A',
-    requiresProxy: true
+    requiresProxy: true,
+    group:'geopolitical'
   },
   {
     id:'mee', name:'Middle East Eye', shortName:'ME Eye', color:'#1A3A6B', site:'https://www.middleeasteye.net',
     url:'https://www.middleeasteye.net/rss',
     fallback:'https://www.middleeasteye.net/taxonomy/term/2/feed',
     bias:'Independent / Pro-Palestinian', biasColor:'#1A3A6B',
-    requiresProxy: true
+    requiresProxy: true,
+    group:'geopolitical'
   },
 
 ];
@@ -1642,38 +1688,79 @@ function renderPanelList() {
   if (!list) return;
   const order = loadOrder();
   const allOrdered = order.map(id => SOURCES.find(s => s.id === id)).filter(Boolean);
-  const last = allOrdered.length - 1;
-  list.innerHTML = allOrdered.map((src, idx) => {
-    const on = vis[src.id] !== false;
-    return `<div class="source-row" onclick="event.stopPropagation();toggleSource('${src.id}')">
-      <div class="src-order-btns">
-        <button class="src-order-btn" ${idx === 0 ? 'disabled' : ''} onclick="event.stopPropagation();moveSource('${src.id}',-1)" title="Move up">▲</button>
-        <button class="src-order-btn" ${idx === last ? 'disabled' : ''} onclick="event.stopPropagation();moveSource('${src.id}',1)" title="Move down">▼</button>
-      </div>
-      <div class="source-row-dot" style="background:${src.color}"></div>
-      <span class="source-row-name">${src.name}</span>
-      <button class="src-toggle ${on ? 'on' : ''}" onclick="event.stopPropagation();toggleSource('${src.id}')">
-        <span class="src-toggle-knob"></span>
-      </button>
+
+  const GROUP_LABELS = {
+    geopolitical: 'Geopolitical',
+    energy:       'Energy & Industry',
+    usnews:       'US News & Politics',
+    markets:      'Markets',
+    alternative:  'Alternative / Independent',
+    local:        'Local',
+    other:        'Other',
+  };
+  const GROUP_ORDER = ['geopolitical','energy','usnews','markets','alternative','local','other'];
+
+  // Build map of group -> ordered sources
+  const grouped = {};
+  GROUP_ORDER.forEach(g => grouped[g] = []);
+  allOrdered.forEach(src => {
+    const g = src.group || 'other';
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(src);
+  });
+
+  let html = '';
+  GROUP_ORDER.forEach(g => {
+    const srcs = grouped[g];
+    if (!srcs || srcs.length === 0) return;
+    const activeCount = srcs.filter(s => vis[s.id] !== false).length;
+    html += `<div class="group-header-row">
+      <span class="group-header-label">${GROUP_LABELS[g]}</span>
+      <span class="group-header-count">${activeCount}/${srcs.length}</span>
     </div>`;
-  }).join('');
+    srcs.forEach((src, idx) => {
+      const on = vis[src.id] !== false;
+      const isFirst = idx === 0;
+      const isLast = idx === srcs.length - 1;
+      html += `<div class="source-row" onclick="event.stopPropagation();toggleSource('${src.id}')">
+        <div class="src-order-btns">
+          <button class="src-order-btn" ${isFirst ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceInGroup('${src.id}',-1)" title="Move up">▲</button>
+          <button class="src-order-btn" ${isLast ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceInGroup('${src.id}',1)" title="Move down">▼</button>
+        </div>
+        <div class="source-row-dot" style="background:${src.color}"></div>
+        <span class="source-row-name">${src.name}</span>
+        <button class="src-toggle ${on ? 'on' : ''}" onclick="event.stopPropagation();toggleSource('${src.id}')">
+          <span class="src-toggle-knob"></span>
+        </button>
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
 }
 
-function moveSource(id, direction) {
+function moveSourceInGroup(id, direction) {
+  const src = SOURCES.find(s => s.id === id);
+  if (!src) return;
+  const group = src.group || 'other';
   const order = loadOrder();
-  const idx = order.indexOf(id);
-  if (idx < 0) return;
-  const newIdx = idx + direction;
-  if (newIdx < 0 || newIdx >= order.length) return;
-  // Swap
-  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+  // Get all IDs in this group in current order
+  const groupIds = order.filter(oid => {
+    const s = SOURCES.find(x => x.id === oid);
+    return s && (s.group || 'other') === group;
+  });
+  const idxInGroup = groupIds.indexOf(id);
+  const newIdxInGroup = idxInGroup + direction;
+  if (newIdxInGroup < 0 || newIdxInGroup >= groupIds.length) return;
+  // Swap in the full order array
+  const posA = order.indexOf(id);
+  const posB = order.indexOf(groupIds[newIdxInGroup]);
+  [order[posA], order[posB]] = [order[posB], order[posA]];
   saveOrder(order);
-  // Reorder cards in the grid DOM
+  // Reorder cards in DOM
   const grid = document.getElementById('grid');
   const cards = order.map(i => document.getElementById('card-' + i)).filter(Boolean);
   cards.forEach(card => grid.appendChild(card));
   renderPanelList();
-  // Keep panel open
   const panel = document.getElementById('sources-panel');
   const btn = document.getElementById('manage-btn');
   panel.classList.add('visible');
