@@ -8,61 +8,25 @@
  *     natgas: { price, change, pct, updated }
  *   }
  *
- * WTI + Brent: oilpriceapi.com (requires OIL_PRICE_API_KEY env var)
- * Nat Gas:     Yahoo Finance NG=F front-month futures (no key required)
+ * All three use Yahoo Finance futures (no API key required):
+ *   WTI:     CL=F (WTI Crude front-month futures)
+ *   Brent:   BZ=F (Brent Crude front-month futures)
+ *   Nat Gas: NG=F (Henry Hub Natural Gas front-month futures)
  */
 export const config = { runtime: 'edge' };
-const BASE = 'https://api.oilpriceapi.com/v1';
 
-async function fetchOilPrice(code, apiKey) {
-  // Fetch latest spot price
-  const res = await fetch(`${BASE}/prices/latest?by_code=${code}`, {
-    headers: { 'Authorization': `Token ${apiKey}`, 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`oilpriceapi HTTP ${res.status} for ${code}`);
-  const j = await res.json();
-  const d = j.data;
-  if (!d) throw new Error(`No data for ${code}`);
-  const price = parseFloat(d.price);
-
-  // Fetch last 2 daily averages to compute day-over-day change
-  let change = 0, pct = 0;
-  try {
-    const res2 = await fetch(`${BASE}/prices?by_code=${code}&by_type=daily_average_price&limit=2`, {
-      headers: { 'Authorization': `Token ${apiKey}`, 'Content-Type': 'application/json' },
-    });
-    if (res2.ok) {
-      const j2 = await res2.json();
-      const entries = j2?.data?.prices;
-      if (entries && entries.length >= 2) {
-        const today = parseFloat(entries[0].price);
-        const prev  = parseFloat(entries[1].price);
-        change = parseFloat((today - prev).toFixed(2));
-        pct    = parseFloat(((change / prev) * 100).toFixed(2));
-      }
-    }
-  } catch(_) { /* leave change/pct as 0 if history fetch fails */ }
-
-  return {
-    price,
-    change,
-    pct,
-    updated: d.created_at || new Date().toISOString(),
-  };
-}
-
-async function fetchNatGas() {
-  const url = 'https://query1.finance.yahoo.com/v8/finance/chart/NG=F?interval=1d&range=5d';
+async function fetchYahoo(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0' },
   });
-  if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status} for ${symbol}`);
   const j = await res.json();
   const meta = j?.chart?.result?.[0]?.meta;
-  if (!meta) throw new Error('Yahoo: no meta');
+  if (!meta) throw new Error(`Yahoo: no meta for ${symbol}`);
   const price  = meta.regularMarketPrice;
   const prev   = meta.chartPreviousClose;
-  const change = parseFloat((price - prev).toFixed(3));
+  const change = parseFloat((price - prev).toFixed(2));
   const pct    = parseFloat(((change / prev) * 100).toFixed(2));
   return {
     price,
@@ -81,18 +45,12 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
   }
-  const apiKey = process.env.OIL_PRICE_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'OIL_PRICE_API_KEY not configured' }), {
-      status: 500,
-      headers: { ...CORS, 'Content-Type': 'application/json' },
-    });
-  }
+
   try {
     const [wti, brent, natgas] = await Promise.allSettled([
-      fetchOilPrice('WTI_USD', apiKey),
-      fetchOilPrice('BRENT_CRUDE_USD', apiKey),
-      fetchNatGas(),
+      fetchYahoo('CL=F'),
+      fetchYahoo('BZ=F'),
+      fetchYahoo('NG=F'),
     ]);
     const result = {
       wti:    wti.status    === 'fulfilled' ? wti.value    : null,
