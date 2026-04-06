@@ -969,10 +969,16 @@ const SOURCES = [
     bias:'Pro-Iran State', biasColor:'#1A5C8B'
   },
   {
-    id:'ha', name:'Times of Israel', shortName:'Times of Israel', color:'#5C3D8B', site:'https://www.timesofisrael.com',
-    url:'https://www.timesofisrael.com/feed/',
-    fallback:'https://www.timesofisrael.com/blogs/feed/',
-    bias:'Center-Right / Israel', biasColor:'#2C6B8B',
+    id:'ha', name:'Jerusalem Post', shortName:'Jerusalem Post', color:'#5C3D8B', site:'https://www.jpost.com',
+    url:'https://www.jpost.com/rss/rssfeedsisraelnews.aspx',
+    fallback:'https://www.jpost.com/rss/rssfeedsheadlines.aspx',
+    bias:'Center-Right / Israel', biasColor:'#2C6B8B'
+  },
+  {
+    id:'972', name:'+972 Magazine', shortName:'+972 Mag', color:'#2C6B3A', site:'https://972mag.com',
+    url:'https://972mag.com/feed',
+    fallback:'https://972mag.com/feed/rss/',
+    bias:'Left / Critical Israel', biasColor:'#2C6B8B',
     requiresProxy: true
   },
   {
