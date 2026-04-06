@@ -1071,6 +1071,40 @@ const SOURCES = [
     bias:'Industry / Trade', biasColor:'#4A7C3F'
   },
 
+  {
+    id:'s21', name:'Sonar21', color:'#2C3E50', site:'https://sonar21.com',
+    url:'https://sonar21.com/feed/',
+    fallback:'https://sonar21.com/feed/rss/',
+    bias:'Anti-Interventionist', biasColor:'#4A4A4A'
+  },
+  {
+    id:'pol', name:'Politico', color:'#003366', site:'https://www.politico.com',
+    url:'https://www.politico.com/rss/politicopicks.xml',
+    fallback:'https://www.politico.com/rss/politics08.xml',
+    bias:'Center-Left', biasColor:'#2C6B8B'
+  },
+  {
+    id:'aw', name:'Antiwar.com', color:'#8B0000', site:'https://www.antiwar.com',
+    url:'https://news.antiwar.com/feed/',
+    fallback:'https://original.antiwar.com/feed/',
+    bias:'Anti-Interventionist', biasColor:'#4A4A4A',
+    requiresProxy: true
+  },
+  {
+    id:'reu', name:'Reuters', color:'#FF8000', site:'https://www.reuters.com',
+    url:'https://feeds.reuters.com/reuters/worldNews',
+    fallback:'https://feeds.reuters.com/Reuters/domesticNews',
+    bias:'Center', biasColor:'#888780',
+    requiresProxy: true
+  },
+  {
+    id:'ap', name:'AP News', color:'#CC0000', site:'https://apnews.com',
+    url:'https://apnews.com/hub/world-news/rss',
+    fallback:'https://apnews.com/apf-topnews/rss',
+    bias:'Center', biasColor:'#888780',
+    requiresProxy: true
+  },
+
   // ── Previously-blocked sources — require USE_VERCEL_PROXY = true ──────────
   // These feeds are geo-blocked, OFAC-flagged, or strip auth headers through
   // browser-side proxies. They work fine server-to-server via the Vercel proxy.
