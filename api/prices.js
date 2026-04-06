@@ -12,6 +12,9 @@
  *   WTI:     CL=F (WTI Crude front-month futures)
  *   Brent:   BZ=F (Brent Crude front-month futures)
  *   Nat Gas: NG=F (Henry Hub Natural Gas front-month futures)
+ *
+ * Change is computed from the last two closes in the OHLC array
+ * to avoid chartPreviousClose contract-roll issues on futures.
  */
 export const config = { runtime: 'edge' };
 
@@ -22,12 +25,26 @@ async function fetchYahoo(symbol) {
   });
   if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status} for ${symbol}`);
   const j = await res.json();
-  const meta = j?.chart?.result?.[0]?.meta;
-  if (!meta) throw new Error(`Yahoo: no meta for ${symbol}`);
+  const result = j?.chart?.result?.[0];
+  if (!result) throw new Error(`Yahoo: no result for ${symbol}`);
+
+  const meta   = result.meta;
+  const closes = result.indicators?.quote?.[0]?.close;
   const price  = meta.regularMarketPrice;
-  const prev   = meta.chartPreviousClose;
-  const change = parseFloat((price - prev).toFixed(2));
-  const pct    = parseFloat(((change / prev) * 100).toFixed(2));
+
+  // Use last two valid closes from the OHLC array for day-over-day change
+  let change = 0, pct = 0;
+  if (closes && closes.length >= 2) {
+    // Filter out nulls, take last two
+    const valid = closes.filter(v => v != null);
+    if (valid.length >= 2) {
+      const prev = valid[valid.length - 2];
+      const curr = valid[valid.length - 1];
+      change = parseFloat((curr - prev).toFixed(2));
+      pct    = parseFloat(((change / prev) * 100).toFixed(2));
+    }
+  }
+
   return {
     price,
     change,
