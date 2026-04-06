@@ -969,10 +969,11 @@ const SOURCES = [
     bias:'Pro-Iran State', biasColor:'#1A5C8B'
   },
   {
-    id:'ha', name:'Haaretz', color:'#5C3D8B', site:'https://www.haaretz.com',
-    url:'https://www.haaretz.com/srv/haaretz-latest-articles.xml',
-    fallback:'https://www.haaretz.com/srv/all-headlines-rss',
-    bias:'Center-Left', biasColor:'#2C6B8B'
+    id:'ha', name:'Times of Israel', shortName:'Times of Israel', color:'#5C3D8B', site:'https://www.timesofisrael.com',
+    url:'https://www.timesofisrael.com/feed/',
+    fallback:'https://www.timesofisrael.com/blogs/feed/',
+    bias:'Center-Right / Israel', biasColor:'#2C6B8B',
+    requiresProxy: true
   },
   {
     id:'yf', name:'MarketWatch', color:'#6001D2', site:'https://www.marketwatch.com', // id:'yf' retained from Yahoo Finance — changing would break localStorage prefs
@@ -1151,13 +1152,6 @@ const SOURCES = [
     url:'https://www.middleeasteye.net/rss',
     fallback:'https://www.middleeasteye.net/taxonomy/term/2/feed',
     bias:'Independent / Pro-Palestinian', biasColor:'#1A3A6B',
-    requiresProxy: true
-  },
-  {
-    id:'ev', name:'Energy Voice', color:'#E87722', site:'https://www.energyvoice.com',
-    url:'https://www.energyvoice.com/feed/',
-    fallback:'https://www.energyvoice.com/category/oilandgas/feed/',
-    bias:'Industry / Trade (UK)', biasColor:'#4A7C3F',
     requiresProxy: true
   },
 
