@@ -1091,18 +1091,34 @@ const SOURCES = [
     requiresProxy: true
   },
   {
-    id:'reu', name:'Reuters', color:'#FF8000', site:'https://www.reuters.com',
-    url:'https://feeds.reuters.com/reuters/worldNews',
-    fallback:'https://feeds.reuters.com/Reuters/domesticNews',
-    bias:'Center', biasColor:'#888780',
-    requiresProxy: true
+    id:'hill', name:'The Hill', color:'#1A1A6E', site:'https://thehill.com',
+    url:'https://thehill.com/feed',
+    fallback:'https://thehill.com/rss/syndicator/19110',
+    bias:'Center', biasColor:'#888780'
   },
   {
-    id:'ap', name:'AP News', color:'#CC0000', site:'https://apnews.com',
-    url:'https://apnews.com/hub/world-news/rss',
-    fallback:'https://apnews.com/apf-topnews/rss',
-    bias:'Center', biasColor:'#888780',
-    requiresProxy: true
+    id:'axios', name:'Axios', color:'#FF4500', site:'https://www.axios.com',
+    url:'https://api.axios.com/feed/',
+    fallback:'https://www.axios.com/feed/',
+    bias:'Center', biasColor:'#888780'
+  },
+  {
+    id:'int', name:'The Intercept', color:'#D42B2B', site:'https://theintercept.com',
+    url:'https://theintercept.com/feed/rss',
+    fallback:'https://theintercept.com/feed/',
+    bias:'Left / Investigative', biasColor:'#2C6B8B'
+  },
+  {
+    id:'dawn', name:'Dawn (Pakistan)', shortName:'Dawn', color:'#006400', site:'https://www.dawn.com',
+    url:'https://www.dawn.com/feed',
+    fallback:'https://feeds.feedburner.com/dawn-news',
+    bias:'Center / South Asia', biasColor:'#888780'
+  },
+  {
+    id:'hindu', name:'The Hindu', color:'#8B0000', site:'https://www.thehindu.com',
+    url:'https://www.thehindu.com/feeder/default.rss',
+    fallback:'https://www.thehindu.com/news/international/feeder/default.rss',
+    bias:'Center-Left / India', biasColor:'#2C6B8B'
   },
 
   // ── Previously-blocked sources — require USE_VERCEL_PROXY = true ──────────
