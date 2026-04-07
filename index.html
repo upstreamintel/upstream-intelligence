@@ -1966,10 +1966,20 @@ function toggleGroup(group) {
   const anyOn = srcsInGroup.some(s => vis[s.id] !== false);
   srcsInGroup.forEach(s => { vis[s.id] = !anyOn; });
   saveVisibility(vis);
-  // Update grid card visibility
+  // Update grid card visibility — fetch if turning on and no data loaded yet
   srcsInGroup.forEach(s => {
     const card = document.getElementById('card-' + s.id);
-    if (card) card.style.display = vis[s.id] === false ? 'none' : '';
+    if (!card) return;
+    if (vis[s.id] === false) {
+      card.style.display = 'none';
+    } else {
+      card.style.display = '';
+      if (!store[s.id] || (store[s.id].state === 'loading' && !store[s.id].items.length)) {
+        fetchFeed(s);
+      } else {
+        renderCard(s);
+      }
+    }
   });
   renderClusters();
   const ordered = getOrderedSources();
