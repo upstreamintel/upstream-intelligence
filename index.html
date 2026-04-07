@@ -1644,6 +1644,16 @@ function renderCard(src) {
 
   const wrap = card.querySelector('.articles-wrap');
   if (wrap) wrap.innerHTML = body;
+
+  // Update per-card article count
+  const countEl = document.getElementById('count-' + src.id);
+  if (countEl) {
+    if (data.state === 'done' && filtered.length > 0) {
+      countEl.textContent = filtered.length;
+    } else {
+      countEl.textContent = '';
+    }
+  }
 }
 
 function renderAll() {
@@ -2202,6 +2212,7 @@ function buildGrid() {
         <div class="source-bar" style="background:${src.color}"></div>
         <span class="card-title">${src.name}</span>
         <span class="bias-wrap"></span>
+        <span class="card-count" id="count-${src.id}"></span>
         <a class="visit-link" href="${src.site}" target="_blank" rel="noopener">Visit ↗</a>
       </div>
       <div class="articles-wrap">
