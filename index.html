@@ -123,19 +123,6 @@
     background: var(--surface);
     flex-wrap: wrap;
   }
-  @media (max-width: 600px) {
-    .filter-bar {
-      padding: 8px 16px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .filter-bar::-webkit-scrollbar { display: none; }
-    .filter-bar .article-count { display: none; }
-    .filter-bar .search-wrap { flex-shrink: 0; }
-    .pill { flex-shrink: 0; }
-  }
   .filter-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-right: 4px; }
   .pill {
     font-size: 12px;
@@ -330,6 +317,7 @@
   @media (max-width: 600px) {
     .masthead, .filter-bar, .main { padding-left: 16px; padding-right: 16px; }
     .masthead-title { font-size: 20px; }
+    #layout-toggle { display: none; }
   }
 
   /* ── Breaking news bar ── */
@@ -402,50 +390,9 @@
   .breaking-drop-item:last-child { border-bottom: none; }
   .breaking-drop-title { font-size: 12px; flex: 1; line-height: 1.4; }
   .breaking-drop-meta { font-size: 11px; opacity: 0.65; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
-  /* breaking-top and breaking-bottom are mobile-only row wrappers */
-  .breaking-top {
-    display: contents; /* invisible on desktop — children behave as direct flex children */
-  }
-  .breaking-bottom {
-    display: contents;
-  }
   @media (max-width: 600px) {
-    .breaking-bar {
-      padding: 7px 16px 8px;
-      flex-direction: column;
-      align-items: stretch;
-      gap: 5px;
-    }
-    .breaking-top {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-    }
-    .breaking-top .breaking-label { flex-shrink: 0; }
-    .breaking-top .breaking-link {
-      flex: 1;
-      white-space: normal;
-      overflow: visible;
-      text-overflow: unset;
-      font-size: 12px;
-      line-height: 1.35;
-    }
-    .breaking-bottom {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      width: 100%;
-    }
-    .breaking-bottom .breaking-source { flex: 1; font-size: 10px; }
-    .breaking-bottom .breaking-dismiss { margin-left: auto; }
+    .breaking-bar { padding: 7px 16px; }
     .breaking-drop-item { padding: 9px 16px; }
-    .breaking-dropdown {
-      position: relative !important;
-      top: auto !important;
-      max-height: 260px;
-      overflow-y: auto;
-    }
   }
 
   /* ── Trending section ── */
@@ -579,10 +526,6 @@
   }
   .manage-btn:hover { background: var(--bg); border-color: var(--text-muted); }
   .manage-btn.open { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
-  @media (max-width: 600px) {
-    .manage-btn { padding: 5px 10px; font-size: 11px; }
-    .manage-btn.open { background: none; color: var(--text-secondary); border-color: var(--border); }
-  }
   .sources-panel {
     display: none;
     position: absolute; top: calc(100% + 4px); right: 32px;
@@ -896,20 +839,8 @@
   .market-error   { color: #6B3030; font-size: 11px; }
 
   @media (max-width: 600px) {
-    .market-strip { padding: 0 0 0 16px; }
-    .market-item {
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: center;
-      gap: 1px;
-      padding: 6px 14px 6px 0;
-      min-width: 82px;
-    }
-    .market-item:first-child { padding-left: 0; }
-    .market-label { font-size: 9px; }
-    .market-price { font-size: 13px; }
-    .market-change { font-size: 10px; }
-    .eia-pill { font-size: 10px; }
+    .market-strip { padding: 0 16px; }
+    .market-item  { padding: 0 12px; }
   }
 </style>
 </head>
@@ -1034,16 +965,12 @@
 </div>
 
 <div class="breaking-bar" id="breaking-bar">
-  <div class="breaking-top">
-    <span class="breaking-label">⚠ Breaking</span>
-    <a class="breaking-link" id="breaking-link" href="#" target="_blank" rel="noopener"></a>
-  </div>
-  <div class="breaking-bottom">
-    <span class="breaking-source" id="breaking-source"></span>
-    <button class="breaking-more" id="breaking-more" onclick="toggleBreakingDropdown(event)" style="display:none"></button>
-    <button class="breaking-seen-btn" id="breaking-seen-btn" onclick="event.stopPropagation();markSeenMain()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;">✓ Seen</button>
-    <button class="breaking-dismiss" onclick="dismissBreaking()" title="Dismiss">×</button>
-  </div>
+  <span class="breaking-label">⚠ Breaking</span>
+  <a class="breaking-link" id="breaking-link" href="#" target="_blank" rel="noopener"></a>
+  <span class="breaking-source" id="breaking-source"></span>
+  <button class="breaking-more" id="breaking-more" onclick="toggleBreakingDropdown(event)" style="display:none"></button>
+  <button class="breaking-seen-btn" id="breaking-seen-btn" onclick="event.stopPropagation();markSeenMain()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;">✓ Seen</button>
+  <button class="breaking-dismiss" onclick="dismissBreaking()" title="Dismiss">×</button>
 </div>
 <div class="breaking-dropdown" id="breaking-dropdown"></div>
 
@@ -2482,21 +2409,15 @@ function checkBreaking() {
 function toggleBreakingDropdown(e) {
   if (e) e.stopPropagation();
   const dropdown = document.getElementById('breaking-dropdown');
-  const isMobile = window.innerWidth <= 600;
-  if (!isMobile) {
-    const bar = document.getElementById('breaking-bar');
-    const rect = bar.getBoundingClientRect();
-    dropdown.style.position = 'fixed';
-    dropdown.style.top = rect.bottom + 'px';
-    dropdown.style.left = '0';
-    dropdown.style.right = '0';
-  }
+  const bar = document.getElementById('breaking-bar');
+  const rect = bar.getBoundingClientRect();
+  // Always position relative to current viewport position of bar
+  dropdown.style.top = rect.bottom + 'px';
   dropdown.classList.toggle('open');
 }
 
-// Keep dropdown anchored when scrolling — desktop only
+// Keep dropdown anchored when scrolling
 window.addEventListener('scroll', () => {
-  if (window.innerWidth <= 600) return;
   const dropdown = document.getElementById('breaking-dropdown');
   if (!dropdown.classList.contains('open')) return;
   const bar = document.getElementById('breaking-bar');
