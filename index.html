@@ -576,14 +576,57 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 16px 4px;
     border-top: 1px solid var(--border-light);
-    margin-top: 4px;
+    margin-top: 4px; gap: 8px;
   }
   .group-header-row:first-child { border-top: none; margin-top: 0; }
   .group-header-label {
     font-size: 10px; font-weight: 500; text-transform: uppercase;
-    letter-spacing: 0.07em; color: var(--text-muted);
+    letter-spacing: 0.07em; color: var(--text-muted); flex: 1;
   }
   .group-header-count { font-size: 11px; color: var(--text-muted); }
+  .group-toggle-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 4px; border: 1px solid var(--border);
+    background: none; cursor: pointer; color: var(--text-muted);
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .group-toggle-btn:hover { background: var(--bg); color: var(--text-secondary); border-color: var(--text-muted); }
+  .group-toggle-btn.all-on { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+
+  /* ── Panel mode toggle ── */
+  .panel-mode-btns { display: flex; gap: 4px; align-items: center; }
+  .panel-mode-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; padding: 3px 10px;
+    border-radius: 6px; border: 1px solid var(--border);
+    background: none; cursor: pointer;
+    color: var(--text-secondary); transition: all 0.15s;
+  }
+  .panel-mode-btn:hover { background: var(--bg); }
+  .panel-mode-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); font-weight: 500; }
+  .panel-done-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; padding: 3px 10px;
+    border-radius: 6px; border: 1px solid var(--accent);
+    background: var(--accent); cursor: pointer;
+    color: #fff; font-weight: 500; transition: opacity 0.15s;
+  }
+  .panel-done-btn:hover { opacity: 0.85; }
+
+  /* ── Reorder mode ── */
+  .src-group-tag {
+    font-size: 9px; color: var(--text-muted);
+    background: var(--bg); border: 1px solid var(--border-light);
+    border-radius: 3px; padding: 1px 5px;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .panel-reorder-hint {
+    font-size: 11px; color: var(--text-muted);
+    text-align: center; padding: 8px 16px;
+    border-top: 1px solid var(--border-light);
+    font-style: italic;
+  }
 
   /* ── Weather widget ── */
   .weather-widget {
@@ -831,8 +874,12 @@
 
   <div class="sources-panel" id="sources-panel">
     <div class="panel-header">
-      <span class="panel-title">Visible sources</span>
-      <button class="panel-all-btn" onclick="toggleAllSources()">Toggle all</button>
+      <span class="panel-title" id="panel-title">Visible sources</span>
+      <div class="panel-mode-btns">
+        <button class="panel-all-btn" id="panel-all-btn" onclick="toggleAllSources()">Toggle all</button>
+        <button class="panel-mode-btn active" id="panel-manage-btn" onclick="setPanelMode('manage')">Manage</button>
+        <button class="panel-mode-btn" id="panel-reorder-btn" onclick="setPanelMode('reorder')">Reorder</button>
+      </div>
     </div>
     <div id="sources-panel-list"></div>
   </div>
@@ -1682,6 +1729,88 @@ function toggleAllSources() {
   }
 }
 
+// ── Panel mode ── ('manage' or 'reorder')
+let panelMode = 'manage';
+
+const GROUP_LABELS = {
+  geopolitical: 'Geopolitical',
+  energy:       'Energy & Industry',
+  usnews:       'US News & Politics',
+  markets:      'Markets',
+  alternative:  'Alternative / Independent',
+  local:        'Local',
+  other:        'Other',
+};
+const GROUP_ORDER = ['geopolitical','energy','usnews','markets','alternative','local','other'];
+const GROUP_SHORT  = {
+  geopolitical: 'Geo', energy: 'Energy', usnews: 'US News',
+  markets: 'Markets', alternative: 'Alt', local: 'Local', other: 'Other',
+};
+
+function setPanelMode(mode) {
+  panelMode = mode;
+  const manageBtn  = document.getElementById('panel-manage-btn');
+  const reorderBtn = document.getElementById('panel-reorder-btn');
+  const allBtn     = document.getElementById('panel-all-btn');
+  const title      = document.getElementById('panel-title');
+  if (mode === 'reorder') {
+    manageBtn.classList.remove('active');
+    reorderBtn.style.display = 'none';
+    let doneBtn = document.getElementById('panel-done-btn');
+    if (!doneBtn) {
+      doneBtn = document.createElement('button');
+      doneBtn.id = 'panel-done-btn';
+      doneBtn.className = 'panel-done-btn';
+      doneBtn.textContent = 'Done';
+      doneBtn.onclick = () => setPanelMode('manage');
+      reorderBtn.parentElement.appendChild(doneBtn);
+    }
+    doneBtn.style.display = '';
+    if (allBtn)  allBtn.style.display  = 'none';
+    if (title)   title.textContent     = 'Reorder sources';
+  } else {
+    manageBtn.classList.add('active');
+    reorderBtn.style.display = '';
+    const doneBtn = document.getElementById('panel-done-btn');
+    if (doneBtn) doneBtn.style.display = 'none';
+    if (allBtn)  allBtn.style.display  = '';
+    if (title)   title.textContent     = 'Visible sources';
+  }
+  renderPanelList();
+  document.getElementById('sources-panel').classList.add('visible');
+  document.getElementById('manage-btn').classList.add('open');
+}
+
+function toggleGroup(group) {
+  const vis = loadVisibility();
+  const srcsInGroup = SOURCES.filter(s => (s.group || 'other') === group);
+  const anyOn = srcsInGroup.some(s => vis[s.id] !== false);
+  srcsInGroup.forEach(s => { vis[s.id] = !anyOn; });
+  saveVisibility(vis);
+  // Update grid card visibility
+  srcsInGroup.forEach(s => {
+    const card = document.getElementById('card-' + s.id);
+    if (card) card.style.display = vis[s.id] === false ? 'none' : '';
+  });
+  renderClusters();
+  const ordered = getOrderedSources();
+  if (ordered.length === 0) {
+    document.getElementById('trending-section').style.display = 'none';
+    showEmptyState();
+  } else if (document.getElementById('empty-state')) {
+    buildGrid();
+    const allVis = loadVisibility();
+    SOURCES.forEach(s => {
+      const c = document.getElementById('card-' + s.id);
+      if (c && allVis[s.id] === false) c.style.display = 'none';
+    });
+  }
+  renderPanelList();
+  updateSourceBtn();
+  document.getElementById('sources-panel').classList.add('visible');
+  document.getElementById('manage-btn').classList.add('open');
+}
+
 function renderPanelList() {
   const vis = loadVisibility();
   const list = document.getElementById('sources-panel-list');
@@ -1689,18 +1818,28 @@ function renderPanelList() {
   const order = loadOrder();
   const allOrdered = order.map(id => SOURCES.find(s => s.id === id)).filter(Boolean);
 
-  const GROUP_LABELS = {
-    geopolitical: 'Geopolitical',
-    energy:       'Energy & Industry',
-    usnews:       'US News & Politics',
-    markets:      'Markets',
-    alternative:  'Alternative / Independent',
-    local:        'Local',
-    other:        'Other',
-  };
-  const GROUP_ORDER = ['geopolitical','energy','usnews','markets','alternative','local','other'];
+  if (panelMode === 'reorder') {
+    let html = '';
+    allOrdered.forEach((src, idx) => {
+      const isFirst = idx === 0;
+      const isLast  = idx === allOrdered.length - 1;
+      const tag = GROUP_SHORT[src.group || 'other'] || 'Other';
+      html += `<div class="source-row" onclick="event.stopPropagation()">
+        <div class="src-order-btns">
+          <button class="src-order-btn" ${isFirst ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceGlobal('${src.id}',-1)" title="Move up">▲</button>
+          <button class="src-order-btn" ${isLast  ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceGlobal('${src.id}',1)"  title="Move down">▼</button>
+        </div>
+        <div class="source-row-dot" style="background:${src.color}"></div>
+        <span class="source-row-name">${src.name}</span>
+        <span class="src-group-tag">${tag}</span>
+      </div>`;
+    });
+    html += `<div class="panel-reorder-hint">Changes apply instantly to the grid</div>`;
+    list.innerHTML = html;
+    return;
+  }
 
-  // Build map of group -> ordered sources
+  // Manage mode — grouped with per-group toggle button
   const grouped = {};
   GROUP_ORDER.forEach(g => grouped[g] = []);
   allOrdered.forEach(src => {
@@ -1714,19 +1853,15 @@ function renderPanelList() {
     const srcs = grouped[g];
     if (!srcs || srcs.length === 0) return;
     const activeCount = srcs.filter(s => vis[s.id] !== false).length;
+    const allOn = activeCount === srcs.length;
+    const btnLabel = activeCount === 0 ? 'All off' : allOn ? 'All on' : `${activeCount}/${srcs.length}`;
     html += `<div class="group-header-row">
       <span class="group-header-label">${GROUP_LABELS[g]}</span>
-      <span class="group-header-count">${activeCount}/${srcs.length}</span>
+      <button class="group-toggle-btn ${allOn ? 'all-on' : ''}" onclick="event.stopPropagation();toggleGroup('${g}')" title="Toggle all ${GROUP_LABELS[g]} sources">${btnLabel}</button>
     </div>`;
-    srcs.forEach((src, idx) => {
+    srcs.forEach(src => {
       const on = vis[src.id] !== false;
-      const isFirst = idx === 0;
-      const isLast = idx === srcs.length - 1;
       html += `<div class="source-row" onclick="event.stopPropagation();toggleSource('${src.id}')">
-        <div class="src-order-btns">
-          <button class="src-order-btn" ${isFirst ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceInGroup('${src.id}',-1)" title="Move up">▲</button>
-          <button class="src-order-btn" ${isLast ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceInGroup('${src.id}',1)" title="Move down">▼</button>
-        </div>
         <div class="source-row-dot" style="background:${src.color}"></div>
         <span class="source-row-name">${src.name}</span>
         <button class="src-toggle ${on ? 'on' : ''}" onclick="event.stopPropagation();toggleSource('${src.id}')">
@@ -1738,33 +1873,19 @@ function renderPanelList() {
   list.innerHTML = html;
 }
 
-function moveSourceInGroup(id, direction) {
-  const src = SOURCES.find(s => s.id === id);
-  if (!src) return;
-  const group = src.group || 'other';
+function moveSourceGlobal(id, direction) {
   const order = loadOrder();
-  // Get all IDs in this group in current order
-  const groupIds = order.filter(oid => {
-    const s = SOURCES.find(x => x.id === oid);
-    return s && (s.group || 'other') === group;
-  });
-  const idxInGroup = groupIds.indexOf(id);
-  const newIdxInGroup = idxInGroup + direction;
-  if (newIdxInGroup < 0 || newIdxInGroup >= groupIds.length) return;
-  // Swap in the full order array
-  const posA = order.indexOf(id);
-  const posB = order.indexOf(groupIds[newIdxInGroup]);
-  [order[posA], order[posB]] = [order[posB], order[posA]];
+  const idx = order.indexOf(id);
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
   saveOrder(order);
-  // Reorder cards in DOM
   const grid = document.getElementById('grid');
   const cards = order.map(i => document.getElementById('card-' + i)).filter(Boolean);
   cards.forEach(card => grid.appendChild(card));
   renderPanelList();
-  const panel = document.getElementById('sources-panel');
-  const btn = document.getElementById('manage-btn');
-  panel.classList.add('visible');
-  btn.classList.add('open');
+  document.getElementById('sources-panel').classList.add('visible');
+  document.getElementById('manage-btn').classList.add('open');
 }
 
 function updateSourceBtn() {
@@ -1807,7 +1928,21 @@ function togglePanel() {
   const btn = document.getElementById('manage-btn');
   const isOpen = panel.classList.toggle('visible');
   btn.classList.toggle('open', isOpen);
-  if (isOpen) renderPanelList();
+  if (isOpen) {
+    renderPanelList();
+  } else {
+    panelMode = 'manage';
+    const manageBtn  = document.getElementById('panel-manage-btn');
+    const reorderBtn = document.getElementById('panel-reorder-btn');
+    const allBtn     = document.getElementById('panel-all-btn');
+    const title      = document.getElementById('panel-title');
+    const doneBtn    = document.getElementById('panel-done-btn');
+    if (manageBtn)  manageBtn.classList.add('active');
+    if (reorderBtn) reorderBtn.style.display = '';
+    if (doneBtn)    doneBtn.style.display = 'none';
+    if (allBtn)     allBtn.style.display = '';
+    if (title)      title.textContent = 'Visible sources';
+  }
 }
 
 // Close panel when clicking outside
