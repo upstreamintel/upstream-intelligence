@@ -871,10 +871,14 @@
   }
 
   /* ── Stock strip ── */
-  .stock-strip {
+  .stock-strip-wrap {
+    position: relative;
     background: #1F1D1A;
     border-bottom: 1px solid #2C2A26;
+  }
+  .stock-strip {
     padding: 0 32px;
+    padding-right: 52px;
     display: flex;
     align-items: stretch;
     gap: 0;
@@ -901,13 +905,24 @@
   .stock-change.down { color: #E74C3C; background: rgba(231,76,60,0.12); }
   .stock-change.flat { color: #6B6760; background: transparent; }
   .stock-add-btn {
+    position: absolute; right: 0; top: 0; bottom: 0;
     display: flex; align-items: center;
-    margin-left: auto; padding: 0 14px;
-    background: none; border: none; border-left: 1px solid #2C2A26;
+    padding: 0 14px;
+    background: #1F1D1A; border: none; border-left: 1px solid #2C2A26;
     color: #6B6760; font-size: 16px; cursor: pointer;
-    min-height: 34px; flex-shrink: 0; transition: color 0.15s;
+    z-index: 2; transition: color 0.15s;
   }
   .stock-add-btn:hover { color: #C8C4BE; }
+  /* Fade gradient hinting more content to the left of the button */
+  .stock-strip-wrap::before {
+    content: '';
+    position: absolute; right: 48px; top: 0; bottom: 0;
+    width: 40px;
+    background: linear-gradient(to right, transparent, #1F1D1A);
+    pointer-events: none; z-index: 1;
+  }
+  .stock-strip { cursor: grab; }
+  .stock-strip.grabbing { cursor: grabbing; user-select: none; }
   .stock-popover {
     display: none; position: fixed; right: 16px;
     background: #1A1916; border: 1px solid #3A3835;
@@ -958,7 +973,7 @@
   .stock-pop-remove { background: none; border: none; color: #4A4845; font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1; transition: color 0.15s; }
   .stock-pop-remove:hover { color: #E74C3C; }
   @media (max-width: 600px) {
-    .stock-strip { padding: 0 0 0 16px; }
+    .stock-strip { padding: 0 52px 0 16px; }
     .stock-item { padding: 0 12px 0 0; min-width: 72px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
     .stock-symbol { font-size: 9px; }
     .stock-price  { font-size: 12px; }
@@ -1086,8 +1101,10 @@
   </div>
 </div>
 
-<div class="stock-strip" id="stock-strip">
-  <!-- Tickers rendered by JS -->
+<div class="stock-strip-wrap">
+  <div class="stock-strip" id="stock-strip">
+    <!-- Tickers rendered by JS -->
+  </div>
   <button class="stock-add-btn" id="stock-add-btn" title="Manage tickers">⊕</button>
 </div>
 <div class="stock-popover" id="stock-popover">
@@ -3270,7 +3287,6 @@ function applyStockSort(data, mode) {
 function renderStockStrip(data) {
   _lastStockData = data;
   const strip = document.getElementById('stock-strip');
-  const addBtn = document.getElementById('stock-add-btn');
   strip.querySelectorAll('.stock-item').forEach(el => el.remove());
 
   const sorted = applyStockSort(data, loadStockSort());
@@ -3289,7 +3305,7 @@ function renderStockStrip(data) {
       <span class="stock-symbol">${t.symbol}</span>
       <span class="stock-price">${price}</span>
       <span class="stock-change ${chgCls}">${chgText}</span>`;
-    strip.insertBefore(div, addBtn);
+    strip.appendChild(div);
   });
 }
 
@@ -3325,7 +3341,7 @@ function renderStockPopList() {
   list.innerHTML = tickers.map(t => `
     <div class="stock-pop-ticker">
       <span class="stock-pop-name">${t}</span>
-      <button class="stock-pop-remove" onclick="removeStockTicker('${t}')" title="Remove">×</button>
+      <button class="stock-pop-remove" onclick="event.stopPropagation();removeStockTicker('${t}')" title="Remove">×</button>
     </div>`).join('');
 }
 
@@ -3428,6 +3444,28 @@ function initStockStrip() {
     return;
   }
   document.getElementById('stock-add-btn').addEventListener('click', toggleStockPopover);
+
+  // Wheel → horizontal scroll; drag → horizontal scroll
+  const strip = document.getElementById('stock-strip');
+  strip.addEventListener('wheel', function(e) {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      strip.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+  let isDown = false, startX, scrollLeft;
+  strip.addEventListener('mousedown', e => {
+    isDown = true; strip.classList.add('grabbing');
+    startX = e.pageX - strip.offsetLeft; scrollLeft = strip.scrollLeft;
+  });
+  strip.addEventListener('mouseleave', () => { isDown = false; strip.classList.remove('grabbing'); });
+  strip.addEventListener('mouseup',    () => { isDown = false; strip.classList.remove('grabbing'); });
+  strip.addEventListener('mousemove',  e => {
+    if (!isDown) return;
+    e.preventDefault();
+    strip.scrollLeft = scrollLeft - (e.pageX - strip.offsetLeft - startX);
+  });
+
   fetchStocks();
   setInterval(fetchStocks, 15 * 60 * 1000);
 }
