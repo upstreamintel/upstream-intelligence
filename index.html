@@ -1966,6 +1966,15 @@ function toggleGroup(group) {
   const anyOn = srcsInGroup.some(s => vis[s.id] !== false);
   srcsInGroup.forEach(s => { vis[s.id] = !anyOn; });
   saveVisibility(vis);
+  // If empty state is showing, rebuild grid first so cards exist before fetching
+  if (document.getElementById('empty-state')) {
+    buildGrid();
+    const allVis = loadVisibility();
+    SOURCES.forEach(s => {
+      const c = document.getElementById('card-' + s.id);
+      if (c && allVis[s.id] === false) c.style.display = 'none';
+    });
+  }
   // Update grid card visibility — fetch if turning on and no data loaded yet
   srcsInGroup.forEach(s => {
     const card = document.getElementById('card-' + s.id);
@@ -1986,13 +1995,6 @@ function toggleGroup(group) {
   if (ordered.length === 0) {
     document.getElementById('trending-section').style.display = 'none';
     showEmptyState();
-  } else if (document.getElementById('empty-state')) {
-    buildGrid();
-    const allVis = loadVisibility();
-    SOURCES.forEach(s => {
-      const c = document.getElementById('card-' + s.id);
-      if (c && allVis[s.id] === false) c.style.display = 'none';
-    });
   }
   renderPanelList();
   updateSourceBtn();
