@@ -404,23 +404,32 @@
   .breaking-drop-meta { font-size: 11px; opacity: 0.65; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
   @media (max-width: 600px) {
     .breaking-bar {
-      padding: 8px 16px;
+      padding: 7px 16px 8px;
       flex-wrap: wrap;
-      gap: 4px;
+      gap: 4px 8px;
+      align-items: center;
     }
     .breaking-label { order: 0; flex-shrink: 0; }
     .breaking-link {
       order: 1;
       width: 100%;
       white-space: normal;
-      line-height: 1.4;
+      line-height: 1.35;
       font-size: 12px;
+      overflow: visible;
+      text-overflow: unset;
     }
     .breaking-source { order: 2; flex: 1; font-size: 10px; }
-    .breaking-more   { order: 3; }
-    .breaking-seen-btn { order: 4; }
-    .breaking-dismiss { order: 5; margin-left: auto; }
+    .breaking-more   { order: 3; flex-shrink: 0; }
+    .breaking-seen-btn { order: 4; flex-shrink: 0; }
+    .breaking-dismiss { order: 5; flex-shrink: 0; margin-left: 2px; }
     .breaking-drop-item { padding: 9px 16px; }
+    .breaking-dropdown {
+      position: relative !important;
+      top: auto !important;
+      max-height: 280px;
+      overflow-y: auto;
+    }
   }
 
   /* ── Trending section ── */
@@ -2453,14 +2462,9 @@ function checkBreaking() {
 function toggleBreakingDropdown(e) {
   if (e) e.stopPropagation();
   const dropdown = document.getElementById('breaking-dropdown');
-  const bar = document.getElementById('breaking-bar');
   const isMobile = window.innerWidth <= 600;
-  if (isMobile) {
-    dropdown.style.position = 'relative';
-    dropdown.style.top = '';
-    dropdown.style.left = '';
-    dropdown.style.right = '';
-  } else {
+  if (!isMobile) {
+    const bar = document.getElementById('breaking-bar');
     const rect = bar.getBoundingClientRect();
     dropdown.style.position = 'fixed';
     dropdown.style.top = rect.bottom + 'px';
