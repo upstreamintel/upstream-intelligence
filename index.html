@@ -402,32 +402,48 @@
   .breaking-drop-item:last-child { border-bottom: none; }
   .breaking-drop-title { font-size: 12px; flex: 1; line-height: 1.4; }
   .breaking-drop-meta { font-size: 11px; opacity: 0.65; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+  /* breaking-top and breaking-bottom are mobile-only row wrappers */
+  .breaking-top {
+    display: contents; /* invisible on desktop — children behave as direct flex children */
+  }
+  .breaking-bottom {
+    display: contents;
+  }
   @media (max-width: 600px) {
     .breaking-bar {
       padding: 7px 16px 8px;
-      flex-wrap: wrap;
-      gap: 4px 8px;
-      align-items: center;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 5px;
     }
-    .breaking-label { order: 0; flex-shrink: 0; }
-    .breaking-link {
-      order: 1;
+    .breaking-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       width: 100%;
+    }
+    .breaking-top .breaking-label { flex-shrink: 0; }
+    .breaking-top .breaking-link {
+      flex: 1;
       white-space: normal;
-      line-height: 1.35;
-      font-size: 12px;
       overflow: visible;
       text-overflow: unset;
+      font-size: 12px;
+      line-height: 1.35;
     }
-    .breaking-source { order: 2; flex: 1; font-size: 10px; }
-    .breaking-more   { order: 3; flex-shrink: 0; }
-    .breaking-seen-btn { order: 4; flex-shrink: 0; }
-    .breaking-dismiss { order: 5; flex-shrink: 0; margin-left: 2px; }
+    .breaking-bottom {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .breaking-bottom .breaking-source { flex: 1; font-size: 10px; }
+    .breaking-bottom .breaking-dismiss { margin-left: auto; }
     .breaking-drop-item { padding: 9px 16px; }
     .breaking-dropdown {
       position: relative !important;
       top: auto !important;
-      max-height: 280px;
+      max-height: 260px;
       overflow-y: auto;
     }
   }
@@ -1018,12 +1034,16 @@
 </div>
 
 <div class="breaking-bar" id="breaking-bar">
-  <span class="breaking-label">⚠ Breaking</span>
-  <a class="breaking-link" id="breaking-link" href="#" target="_blank" rel="noopener"></a>
-  <span class="breaking-source" id="breaking-source"></span>
-  <button class="breaking-more" id="breaking-more" onclick="toggleBreakingDropdown(event)" style="display:none"></button>
-  <button class="breaking-seen-btn" id="breaking-seen-btn" onclick="event.stopPropagation();markSeenMain()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;">✓ Seen</button>
-  <button class="breaking-dismiss" onclick="dismissBreaking()" title="Dismiss">×</button>
+  <div class="breaking-top">
+    <span class="breaking-label">⚠ Breaking</span>
+    <a class="breaking-link" id="breaking-link" href="#" target="_blank" rel="noopener"></a>
+  </div>
+  <div class="breaking-bottom">
+    <span class="breaking-source" id="breaking-source"></span>
+    <button class="breaking-more" id="breaking-more" onclick="toggleBreakingDropdown(event)" style="display:none"></button>
+    <button class="breaking-seen-btn" id="breaking-seen-btn" onclick="event.stopPropagation();markSeenMain()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;">✓ Seen</button>
+    <button class="breaking-dismiss" onclick="dismissBreaking()" title="Dismiss">×</button>
+  </div>
 </div>
 <div class="breaking-dropdown" id="breaking-dropdown"></div>
 
