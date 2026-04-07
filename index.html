@@ -869,6 +869,85 @@
     .market-change { font-size: 10px; }
     .eia-pill { font-size: 10px; }
   }
+
+  /* ── Stock strip ── */
+  .stock-strip {
+    background: #1F1D1A;
+    border-bottom: 1px solid #2C2A26;
+    padding: 0 32px;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    min-height: 34px;
+  }
+  .stock-strip::-webkit-scrollbar { display: none; }
+  .stock-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 14px;
+    border-right: 1px solid #2C2A26;
+    white-space: nowrap;
+    min-height: 34px;
+    flex-shrink: 0;
+  }
+  .stock-item:first-child { padding-left: 0; }
+  .stock-symbol { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: #C8C4BE; }
+  .stock-price  { font-size: 13px; font-weight: 500; color: #FFFFFF; }
+  .stock-change { font-size: 11px; padding: 1px 5px; border-radius: 3px; }
+  .stock-change.up   { color: #2ECC71; background: rgba(46,204,113,0.12); }
+  .stock-change.down { color: #E74C3C; background: rgba(231,76,60,0.12); }
+  .stock-change.flat { color: #6B6760; background: transparent; }
+  .stock-add-btn {
+    display: flex; align-items: center;
+    margin-left: auto; padding: 0 14px;
+    background: none; border: none; border-left: 1px solid #2C2A26;
+    color: #6B6760; font-size: 16px; cursor: pointer;
+    min-height: 34px; flex-shrink: 0; transition: color 0.15s;
+  }
+  .stock-add-btn:hover { color: #C8C4BE; }
+  .stock-popover {
+    display: none; position: fixed; right: 16px;
+    background: #1A1916; border: 1px solid #3A3835;
+    border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    padding: 14px 16px; z-index: 400; min-width: 240px;
+  }
+  .stock-popover.open { display: block; }
+  .stock-pop-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #6B6760; margin-bottom: 10px; }
+  .stock-pop-row { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .stock-pop-input {
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    background: #2C2A26; border: 1px solid #3A3835;
+    border-radius: 6px; padding: 5px 10px; flex: 1;
+    outline: none; color: #fff; text-transform: uppercase;
+    transition: border-color 0.15s;
+  }
+  .stock-pop-input:focus { border-color: #4A7C3F; }
+  .stock-pop-input::placeholder { color: #4A4845; text-transform: none; }
+  .stock-pop-btn {
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    background: #2C4A7C; color: #fff; border: none;
+    border-radius: 6px; padding: 5px 12px; cursor: pointer;
+    transition: opacity 0.15s; white-space: nowrap;
+  }
+  .stock-pop-btn:hover { opacity: 0.85; }
+  .stock-pop-status { font-size: 11px; color: #6B6760; min-height: 14px; margin-bottom: 8px; }
+  .stock-pop-status.error { color: #E74C3C; }
+  .stock-pop-list { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; }
+  .stock-pop-ticker { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 6px; transition: background 0.1s; }
+  .stock-pop-ticker:hover { background: #2C2A26; }
+  .stock-pop-name { font-size: 12px; color: #C8C4BE; font-weight: 500; }
+  .stock-pop-remove { background: none; border: none; color: #4A4845; font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1; transition: color 0.15s; }
+  .stock-pop-remove:hover { color: #E74C3C; }
+  @media (max-width: 600px) {
+    .stock-strip { padding: 0 0 0 16px; }
+    .stock-item { padding: 0 12px 0 0; min-width: 72px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
+    .stock-symbol { font-size: 9px; }
+    .stock-price  { font-size: 12px; }
+    .stock-change { font-size: 10px; }
+  }
 </style>
 </head>
 <body>
@@ -989,6 +1068,21 @@
   <div class="market-item" style="margin-left:auto;border-right:none;">
     <span class="market-label" id="ms-updated" style="color:#C8C4BE;"></span>
   </div>
+</div>
+
+<div class="stock-strip" id="stock-strip">
+  <!-- Tickers rendered by JS -->
+  <button class="stock-add-btn" id="stock-add-btn" title="Manage tickers">⊕</button>
+</div>
+<div class="stock-popover" id="stock-popover">
+  <div class="stock-pop-title">Portfolio Tickers</div>
+  <div class="stock-pop-row">
+    <input class="stock-pop-input" id="stock-pop-input" type="text" placeholder="Add ticker (e.g. XOM)"
+      maxlength="6" onkeydown="if(event.key==='Enter')addStockTicker()" />
+    <button class="stock-pop-btn" onclick="addStockTicker()">Add</button>
+  </div>
+  <div class="stock-pop-status" id="stock-pop-status"></div>
+  <div class="stock-pop-list" id="stock-pop-list"></div>
 </div>
 
 <div class="breaking-bar" id="breaking-bar">
@@ -3105,9 +3199,146 @@ function initMarketStrip() {
   setInterval(fetchPrices, 15 * 60 * 1000);
 }
 
+// ── Stock strip ───────────────────────────────────────────────────────────
+const STOCK_DEFAULTS = ['COP', 'BTE', 'CRGY', 'KO', 'CVX', 'NVDA'];
+const STOCK_KEY = 'upstream_stock_tickers';
+
+function loadStockTickers() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STOCK_KEY));
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch(e) {}
+  return [...STOCK_DEFAULTS];
+}
+
+function saveStockTickers(arr) {
+  try { localStorage.setItem(STOCK_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+
+function renderStockStrip(data) {
+  const strip = document.getElementById('stock-strip');
+  const addBtn = document.getElementById('stock-add-btn');
+  // Remove old ticker items, keep the add button
+  strip.querySelectorAll('.stock-item').forEach(el => el.remove());
+
+  data.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'stock-item';
+    const price = t.price !== null ? '$' + t.price.toFixed(2) : '—';
+    let chgText = '—', chgCls = 'flat';
+    if (t.change !== null && t.pct !== null) {
+      const sign = t.change >= 0 ? '+' : '';
+      chgText = `${sign}${t.change.toFixed(2)} (${sign}${t.pct.toFixed(2)}%)`;
+      chgCls = t.change > 0 ? 'up' : t.change < 0 ? 'down' : 'flat';
+    }
+    div.innerHTML = `
+      <span class="stock-symbol">${t.symbol}</span>
+      <span class="stock-price">${price}</span>
+      <span class="stock-change ${chgCls}">${chgText}</span>`;
+    strip.insertBefore(div, addBtn);
+  });
+}
+
+async function fetchStocks() {
+  const tickers = loadStockTickers();
+  try {
+    const res = await fetch(
+      `${VERCEL_BASE}/api/stocks?tickers=${tickers.join(',')}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const { tickers: data } = await res.json();
+    renderStockStrip(data);
+  } catch(e) {
+    console.warn('[Stocks] fetch failed:', e.message);
+  }
+}
+
+function renderStockPopList() {
+  const list = document.getElementById('stock-pop-list');
+  const tickers = loadStockTickers();
+  list.innerHTML = tickers.map(t => `
+    <div class="stock-pop-ticker">
+      <span class="stock-pop-name">${t}</span>
+      <button class="stock-pop-remove" onclick="removeStockTicker('${t}')" title="Remove">×</button>
+    </div>`).join('');
+}
+
+function toggleStockPopover(e) {
+  e.stopPropagation();
+  const pop = document.getElementById('stock-popover');
+  const btn = document.getElementById('stock-add-btn');
+  const isOpen = pop.classList.toggle('open');
+  if (isOpen) {
+    // Position popover above the strip
+    const stripRect = document.getElementById('stock-strip').getBoundingClientRect();
+    pop.style.top = (stripRect.top - 10) + 'px';
+    pop.style.transform = 'translateY(-100%)';
+    renderStockPopList();
+    document.getElementById('stock-pop-status').textContent = '';
+    setTimeout(() => document.getElementById('stock-pop-input').focus(), 50);
+  }
+}
+
+async function addStockTicker() {
+  const input = document.getElementById('stock-pop-input');
+  const status = document.getElementById('stock-pop-status');
+  const symbol = input.value.trim().toUpperCase();
+  if (!symbol) return;
+  const tickers = loadStockTickers();
+  if (tickers.includes(symbol)) {
+    status.className = 'stock-pop-status error';
+    status.textContent = symbol + ' already added';
+    return;
+  }
+  status.className = 'stock-pop-status';
+  status.textContent = 'Validating…';
+  try {
+    const res = await fetch(`${VERCEL_BASE}/api/stocks?tickers=${symbol}`, { signal: AbortSignal.timeout(6000) });
+    const { tickers: data } = await res.json();
+    if (!data[0] || data[0].error || data[0].price === null) throw new Error('Not found');
+    tickers.push(symbol);
+    saveStockTickers(tickers);
+    input.value = '';
+    status.textContent = symbol + ' added';
+    renderStockPopList();
+    fetchStocks();
+  } catch(e) {
+    status.className = 'stock-pop-status error';
+    status.textContent = 'Ticker not found or unavailable';
+  }
+}
+
+function removeStockTicker(symbol) {
+  const tickers = loadStockTickers().filter(t => t !== symbol);
+  saveStockTickers(tickers);
+  renderStockPopList();
+  fetchStocks();
+}
+
+document.addEventListener('click', e => {
+  const pop = document.getElementById('stock-popover');
+  const btn = document.getElementById('stock-add-btn');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target) && !btn.contains(e.target)) {
+    pop.classList.remove('open');
+  }
+});
+
+function initStockStrip() {
+  if (!USE_VERCEL_PROXY) {
+    const strip = document.getElementById('stock-strip');
+    if (strip) strip.style.display = 'none';
+    return;
+  }
+  document.getElementById('stock-add-btn').addEventListener('click', toggleStockPopover);
+  fetchStocks();
+  setInterval(fetchStocks, 15 * 60 * 1000);
+}
+
 initWeather();
 initVerse();
 initMarketStrip();
+initStockStrip();
 </script>
 </body>
 </html>
