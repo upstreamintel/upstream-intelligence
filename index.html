@@ -911,30 +911,46 @@
   .stock-popover {
     display: none; position: fixed; right: 16px;
     background: #1A1916; border: 1px solid #3A3835;
-    border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    padding: 14px 16px; z-index: 400; min-width: 240px;
+    border-radius: 10px; box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+    padding: 14px 16px 16px; z-index: 400; min-width: 260px;
+    max-height: calc(100vh - 24px); overflow-y: auto;
   }
   .stock-popover.open { display: block; }
   .stock-pop-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #6B6760; margin-bottom: 10px; }
-  .stock-pop-row { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .stock-pop-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
   .stock-pop-input {
-    font-family: 'DM Sans', sans-serif; font-size: 12px;
-    background: #2C2A26; border: 1px solid #3A3835;
-    border-radius: 6px; padding: 5px 10px; flex: 1;
-    outline: none; color: #fff; text-transform: uppercase;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    background: #2C2A26; border: 1px solid #4A4845;
+    border-radius: 6px; padding: 7px 10px; flex: 1;
+    outline: none; color: #FFFFFF; text-transform: uppercase;
+    -webkit-text-fill-color: #FFFFFF;
     transition: border-color 0.15s;
+    appearance: none; -webkit-appearance: none;
   }
   .stock-pop-input:focus { border-color: #4A7C3F; }
-  .stock-pop-input::placeholder { color: #4A4845; text-transform: none; }
+  .stock-pop-input::placeholder { color: #4A4845; text-transform: none; -webkit-text-fill-color: #4A4845; }
   .stock-pop-btn {
-    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
     background: #2C4A7C; color: #fff; border: none;
-    border-radius: 6px; padding: 5px 12px; cursor: pointer;
+    border-radius: 6px; padding: 7px 14px; cursor: pointer;
     transition: opacity 0.15s; white-space: nowrap;
   }
   .stock-pop-btn:hover { opacity: 0.85; }
   .stock-pop-status { font-size: 11px; color: #6B6760; min-height: 14px; margin-bottom: 8px; }
   .stock-pop-status.error { color: #E74C3C; }
+  /* Sort controls */
+  .stock-sort-row { display: flex; gap: 4px; align-items: center; margin-bottom: 10px; }
+  .stock-sort-label { font-size: 10px; color: #4A4845; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+  .stock-sort-btn {
+    font-family: 'DM Sans', sans-serif; font-size: 11px;
+    background: #2C2A26; border: 1px solid #3A3835;
+    border-radius: 4px; padding: 3px 8px; cursor: pointer;
+    color: #6B6760; transition: all 0.15s; white-space: nowrap;
+  }
+  .stock-sort-btn:hover { color: #C8C4BE; border-color: #4A4845; }
+  .stock-sort-btn.active { background: #2C4A7C; border-color: #2C4A7C; color: #fff; }
+  .stock-pop-list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .stock-pop-list-label { font-size: 10px; color: #4A4845; text-transform: uppercase; letter-spacing: 0.06em; }
   .stock-pop-list { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; }
   .stock-pop-ticker { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 6px; transition: background 0.1s; }
   .stock-pop-ticker:hover { background: #2C2A26; }
@@ -1078,10 +1094,20 @@
   <div class="stock-pop-title">Portfolio Tickers</div>
   <div class="stock-pop-row">
     <input class="stock-pop-input" id="stock-pop-input" type="text" placeholder="Add ticker (e.g. XOM)"
+      autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
       maxlength="6" onkeydown="if(event.key==='Enter')addStockTicker()" />
     <button class="stock-pop-btn" onclick="addStockTicker()">Add</button>
   </div>
   <div class="stock-pop-status" id="stock-pop-status"></div>
+  <div class="stock-sort-row">
+    <span class="stock-sort-label">Sort</span>
+    <button class="stock-sort-btn active" id="sort-default" onclick="setStockSort('default')">Default</button>
+    <button class="stock-sort-btn" id="sort-gainers" onclick="setStockSort('gainers')">▲ Gainers</button>
+    <button class="stock-sort-btn" id="sort-losers" onclick="setStockSort('losers')">▼ Losers</button>
+  </div>
+  <div class="stock-pop-list-header">
+    <span class="stock-pop-list-label">Your tickers</span>
+  </div>
   <div class="stock-pop-list" id="stock-pop-list"></div>
 </div>
 
@@ -3202,6 +3228,7 @@ function initMarketStrip() {
 // ── Stock strip ───────────────────────────────────────────────────────────
 const STOCK_DEFAULTS = ['COP', 'BTE', 'CRGY', 'KO', 'CVX', 'NVDA'];
 const STOCK_KEY = 'upstream_stock_tickers';
+const STOCK_SORT_KEY = 'upstream_stock_sort';
 
 function loadStockTickers() {
   try {
@@ -3215,13 +3242,40 @@ function saveStockTickers(arr) {
   try { localStorage.setItem(STOCK_KEY, JSON.stringify(arr)); } catch(e) {}
 }
 
+function loadStockSort() {
+  return localStorage.getItem(STOCK_SORT_KEY) || 'default';
+}
+
+function saveStockSort(s) {
+  try { localStorage.setItem(STOCK_SORT_KEY, s); } catch(e) {}
+}
+
+// Last fetched data, keyed by symbol — needed for sort to work without re-fetch
+let _lastStockData = [];
+
+function applyStockSort(data, mode) {
+  const copy = [...data];
+  if (mode === 'gainers') {
+    copy.sort((a, b) => (b.pct ?? -Infinity) - (a.pct ?? -Infinity));
+  } else if (mode === 'losers') {
+    copy.sort((a, b) => (a.pct ?? Infinity) - (b.pct ?? Infinity));
+  } else {
+    // Default: restore saved ticker order
+    const order = loadStockTickers();
+    copy.sort((a, b) => order.indexOf(a.symbol) - order.indexOf(b.symbol));
+  }
+  return copy;
+}
+
 function renderStockStrip(data) {
+  _lastStockData = data;
   const strip = document.getElementById('stock-strip');
   const addBtn = document.getElementById('stock-add-btn');
-  // Remove old ticker items, keep the add button
   strip.querySelectorAll('.stock-item').forEach(el => el.remove());
 
-  data.forEach(t => {
+  const sorted = applyStockSort(data, loadStockSort());
+
+  sorted.forEach(t => {
     const div = document.createElement('div');
     div.className = 'stock-item';
     const price = t.price !== null ? '$' + t.price.toFixed(2) : '—';
@@ -3237,6 +3291,17 @@ function renderStockStrip(data) {
       <span class="stock-change ${chgCls}">${chgText}</span>`;
     strip.insertBefore(div, addBtn);
   });
+}
+
+function setStockSort(mode) {
+  saveStockSort(mode);
+  // Update active button
+  ['default','gainers','losers'].forEach(m => {
+    const btn = document.getElementById('sort-' + m);
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  // Re-render strip with new sort (no fetch needed)
+  if (_lastStockData.length) renderStockStrip(_lastStockData);
 }
 
 async function fetchStocks() {
@@ -3264,19 +3329,51 @@ function renderStockPopList() {
     </div>`).join('');
 }
 
+function syncSortButtons() {
+  const mode = loadStockSort();
+  ['default','gainers','losers'].forEach(m => {
+    const btn = document.getElementById('sort-' + m);
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+}
+
 function toggleStockPopover(e) {
   e.stopPropagation();
   const pop = document.getElementById('stock-popover');
   const btn = document.getElementById('stock-add-btn');
   const isOpen = pop.classList.toggle('open');
   if (isOpen) {
-    // Position popover above the strip
-    const stripRect = document.getElementById('stock-strip').getBoundingClientRect();
-    pop.style.top = (stripRect.top - 10) + 'px';
-    pop.style.transform = 'translateY(-100%)';
+    syncSortButtons();
     renderStockPopList();
     document.getElementById('stock-pop-status').textContent = '';
-    setTimeout(() => document.getElementById('stock-pop-input').focus(), 50);
+
+    const btnRect = btn.getBoundingClientRect();
+    const gap = 8;
+    const margin = 12;
+
+    // Measure popover height while invisible
+    pop.style.visibility = 'hidden';
+    pop.style.top = '0px';
+    pop.style.bottom = '';
+    pop.style.right = (window.innerWidth - btnRect.right) + 'px';
+    const popH = pop.offsetHeight;
+    pop.style.visibility = '';
+
+    const spaceAbove = btnRect.top - gap - margin;
+    if (popH <= spaceAbove) {
+      // Fits above button
+      pop.style.top = '';
+      pop.style.bottom = (window.innerHeight - btnRect.top + gap) + 'px';
+    } else {
+      // Not enough room above — pin to top of viewport
+      pop.style.bottom = '';
+      pop.style.top = margin + 'px';
+    }
+
+    setTimeout(() => {
+      const inp = document.getElementById('stock-pop-input');
+      if (inp) inp.focus();
+    }, 80);
   }
 }
 
