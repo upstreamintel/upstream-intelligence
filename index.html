@@ -1200,6 +1200,7 @@ const SOURCES = [
     fallback:'https://www.presstv.ir/RSS',
     bias:'Pro-Iran State', biasColor:'#1A5C8B',
     requiresProxy: true,
+    noDate: true,
     group:'geopolitical'
   },
   {
@@ -1211,8 +1212,22 @@ const SOURCES = [
   },
   {
     id:'yf', name:'MarketWatch', color:'#6001D2', site:'https://www.marketwatch.com', // id:'yf' retained from Yahoo Finance — changing would break localStorage prefs
-    url:'https://feeds.marketwatch.com/marketwatch/topstories/',
-    fallback:'https://feeds.marketwatch.com/marketwatch/marketpulse/',
+    url:'https://feeds.content.dowjones.io/public/rss/mw_topstories',
+    fallback:'https://feeds.content.dowjones.io/public/rss/mw_marketpulse',
+    bias:'Center', biasColor:'#888780',
+    group:'markets'
+  },
+  {
+    id:'cnbc', name:'CNBC — Markets', shortName:'CNBC Markets', color:'#0A2756', site:'https://www.cnbc.com/markets',
+    url:'https://www.cnbc.com/id/20910258/device/rss/rss.html',
+    fallback:'https://www.cnbc.com/id/100646281/device/rss/rss.html',
+    bias:'Center', biasColor:'#888780',
+    group:'markets'
+  },
+  {
+    id:'cnbcwn', name:'CNBC — World News', shortName:'CNBC World', color:'#0A2756', site:'https://www.cnbc.com/world',
+    url:'https://www.cnbc.com/id/100727362/device/rss/rss.html',
+    fallback:'https://www.cnbc.com/id/15839069/device/rss/rss.html',
     bias:'Center', biasColor:'#888780',
     group:'markets'
   },
@@ -1224,9 +1239,9 @@ const SOURCES = [
     group:'alternative'
   },
   {
-    id:'cnn', name:'CNN — World', shortName:'CNN World', color:'#CC0000', site:'https://www.cnn.com/world',
-    url:'http://rss.cnn.com/rss/cnn_world.rss',
-    fallback:'http://rss.cnn.com/rss/cnn_allpolitics.rss',
+    id:'cnn', name:'The Guardian — World', shortName:'The Guardian', color:'#CC0000', site:'https://www.theguardian.com/world',
+    url:'https://www.theguardian.com/world/rss',
+    fallback:'https://www.theguardian.com/international/rss',
     bias:'Center-Left', biasColor:'#2C6B8B',
     group:'usnews'
   },
@@ -1260,8 +1275,9 @@ const SOURCES = [
   },
   {
     id:'wo', name:'World Oil', color:'#1A5276', site:'https://www.worldoil.com/news',
-    url:'https://www.worldoil.com/rss?feed=topic:eagle+ford',
-    fallback:'https://www.worldoil.com/rss?feed=news',
+    url:'https://www.worldoil.com/rss?feed=news',
+    fallback:'https://www.worldoil.com/rss?feed=topic:shale',
+    noDate: true,
     bias:'Industry / Trade', biasColor:'#4A7C3F',
     group:'energy'
   },
@@ -1302,8 +1318,8 @@ const SOURCES = [
   },
   {
     id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
-    url:'https://www.enverus.com/feed',
-    fallback: null,
+    url:'https://www.enverus.com/blog-feed/',
+    fallback:'https://www.enverus.com/feed/',
     bias:'Industry / Data', biasColor:'#E87722',
     group:'energy'
   },
@@ -1384,14 +1400,6 @@ const SOURCES = [
   // These feeds are geo-blocked, OFAC-flagged, or strip auth headers through
   // browser-side proxies. They work fine server-to-server via the Vercel proxy.
   // They are hidden by default until you flip USE_VERCEL_PROXY to true.
-  {
-    id:'xh', name:'Xinhua News', color:'#CC0000', site:'https://english.news.cn',
-    url:'https://english.news.cn/home/rss/china.xml',
-    fallback:'http://www.xinhuanet.com/english/rss/chinarss.xml',
-    bias:'Chinese State Media', biasColor:'#CC0000',
-    requiresProxy: true,
-    group:'geopolitical'
-  },
   {
     id:'cgtn', name:'CGTN', color:'#C0392B', site:'https://www.cgtn.com',
     url:'https://www.cgtn.com/subscribe/rss/section/world.xml',
@@ -1718,7 +1726,7 @@ async function fetchFeed(src) {
   updateSourceBtn();
 }
 
-function buildArticleHTML(item) {
+function buildArticleHTML(item, src) {
   const tg = tagItem(item.title, item.desc);
   const tagged = tg.fp || tg.mkt || tg.en || tg.dom || tg.mil || tg.oil;
   const badges = [
@@ -1735,12 +1743,13 @@ function buildArticleHTML(item) {
   const prevLinks = loadPrevLinks();
   const isNew = allFeedsSettled && item.link && !prevLinks.has(item.link);
   const dot = `<div class="article-dot-wrap">${isNew ? '<span class="article-new-dot"></span>' : ''}</div>`;
+  const timeHTML = src?.noDate ? '' : `<span class="article-time">${relTime(item.pubDate)}</span>`;
   return `<a class="article" href="${safeLink}" target="_blank" rel="noopener">
     ${dot}
     <div class="article-body">
       <div class="article-title">${displayTitle}</div>
       <div class="article-meta">
-        <span class="article-time">${relTime(item.pubDate)}</span>
+        ${timeHTML}
         ${badges}
       </div>
     </div>
@@ -1776,7 +1785,7 @@ function renderCard(src) {
         </div>`;
     body = msg;
   } else {
-    body = filtered.map(buildArticleHTML).join('');
+    body = filtered.map(item => buildArticleHTML(item, src)).join('');
   }
 
   const wrap = card.querySelector('.articles-wrap');
