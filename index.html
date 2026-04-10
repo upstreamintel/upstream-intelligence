@@ -1462,9 +1462,31 @@ const SOURCES = [
 ];
 
 const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat'];
-const MKT_KW = ['fed ','federal reserve','interest rate','inflation','gdp','recession','treasury','yield','dollar','nasdaq','s&p','dow jones','earnings','stock market','bond market','economy','tariff','trade war','imf','world bank'];
+const MKT_KW = ['the fed','federal reserve','interest rate','inflation','gdp','recession','treasury','yield','dollar','nasdaq','s&p','dow jones','earnings','stock market','bond market','economy','tariff','trade war','imf','world bank'];
 const EN_KW  = ['oil price','crude','natural gas','lng','opec','permian','eagle ford','shale','refinery','pipeline','barrel','boe','upstream','downstream','energy','petroleum','eog','chevron','exxon','conocophillips','conoco','halliburton','schlumberger','energy sector'];
-const DOM_KW = ['trump','biden','congress','senate','house of representatives','white house','executive order','legislation','supreme court','fda','fbi','cia','doj','doge','rfk','hhs','medicare','medicaid','social security','immigration','border','deportat','tariff','maga','democrat','republican','gop','election','ballot','voting','governor','attorney general','epa','sec ','irs','federal budget','national debt','deficit','stimulus','infrastructure','obamacare','affordable care','vaccine mandate','abortion','gun control','second amendment','first amendment','constitution','federal court','appeals court'];
+const DOM_KW = [
+  // US political figures & proper nouns — zero ambiguity
+  'trump','biden','maga','democrat','republican','gop','doge','rfk',
+  // US institutions — specific enough
+  'congress','white house','pentagon','fda','fbi','cia','doj','hhs','epa','irs',
+  // US-specific policy terms
+  'executive order','federal budget','national debt','obamacare','affordable care',
+  'medicare','medicaid','social security','vaccine mandate',
+  'second amendment','first amendment','federal court','appeals court',
+  // Legal & legislative — US-anchored phrases
+  'us senate','us house','house of representatives','us supreme court',
+  'us legislation','us constitution','us election','us ballot',
+  'us immigration','us border','american election','midterm election',
+  'presidential election','electoral college','ballot measure',
+  // Policy terms qualified to reduce intl false positives
+  'us tariff','american tariff','trump tariff',
+  'us deficit','us stimulus','us infrastructure',
+  'us abortion','us gun control','us gun law',
+  'us attorney general','us governor',
+  // Immigration — US context phrases
+  'deportat','us immigration','border patrol','ice raid',
+  'dhs','department of homeland',
+];
 const MIL_KW = ['airstrike','air strike','bombing','drone strike','missile strike','ground troops','military operation','special forces','warship','aircraft carrier','fighter jet','f-35','f-16','stealth bomber','navy seal','delta force','marines','us army','battalion','brigade','artillery','armored','naval','air force','defense ministry','joint chiefs','centcom','nato forces','deployment','casualties','killed in action','wounded','siege','offensive operation','counteroffensive','precision strike','hypersonic','ballistic','intercept','shoot down','war crime','collateral damage','bunker','fortif'];
 const UPSTREAM_KW = [
   // Basin-specific (proper nouns — zero false positive risk)
