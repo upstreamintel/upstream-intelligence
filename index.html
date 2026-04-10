@@ -415,12 +415,17 @@
 
   /* ── Trending section ── */
   .trending-section {
-    padding: 20px 32px 4px;
+    padding: 20px 0 4px;
     border-bottom: 1px solid var(--border-light);
   }
   .trending-header {
-    display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px;
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;
     cursor: pointer; user-select: none;
+    padding-left: 32px; padding-right: 32px;
+  }
+  @media (max-width: 600px) {
+    .trending-section { padding-top: 14px; }
+    .trending-header { padding-left: 16px; padding-right: 16px; }
   }
   .trending-header:hover .trending-title { opacity: 0.75; }
   /* ── Trending new-stories indicator ── */
@@ -452,86 +457,108 @@
     text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px;
   }
   .trending-sub { font-size: 11px; color: var(--text-muted); }
+  /* ── Trending horizontal scroll track ── */
   .clusters {
-    display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px;
-    scrollbar-width: thin;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    padding: 0 32px 16px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
   }
-  .clusters::-webkit-scrollbar { height: 3px; }
+  .clusters::-webkit-scrollbar { height: 4px; }
+  .clusters::-webkit-scrollbar-track { background: transparent; }
   .clusters::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
   .cluster-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 12px 14px;
-    min-width: 260px; max-width: 300px; flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-top: 3px solid var(--accent);
+    border-radius: 10px;
+    min-width: 280px; max-width: 320px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
   }
+  @media (max-width: 600px) {
+    .cluster-card { min-width: 260px; max-width: 280px; }
+    .clusters { padding-left: 16px; padding-right: 16px; }
+  }
+
+  /* card header */
+  .cluster-header {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px 8px; user-select: none;
+    cursor: default; flex-shrink: 0;
+  }
+  .cluster-header-left { flex: 1; min-width: 0; }
   .cluster-topic {
     font-size: 13px; font-weight: 500; color: var(--text-primary);
-    margin-bottom: 4px; line-height: 1.3;
+    line-height: 1.3; margin-bottom: 5px;
   }
   .cluster-meta {
-    font-size: 11px; color: var(--text-muted); margin-bottom: 10px;
-    display: flex; gap: 8px; align-items: center;
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
   }
   .cluster-source-count {
     background: var(--accent-light); color: var(--accent);
     font-size: 10px; font-weight: 500;
-    padding: 1px 7px; border-radius: 99px;
+    padding: 1px 7px; border-radius: 99px; flex-shrink: 0;
   }
-  .cluster-headlines { display: flex; flex-direction: column; gap: 6px; }
-  .cluster-headline {
-    display: flex; gap: 7px; align-items: flex-start;
-    text-decoration: none; color: inherit;
-    padding: 5px 7px; border-radius: 6px; margin: 0 -7px;
-    transition: background 0.1s;
-  }
-  .cluster-headline:hover { background: var(--bg); }
-  .cluster-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
-  .cluster-hl-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
-  .cluster-hl-source { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
-
-  /* ── Cluster bias enhancements ── */
-  .cluster-spectrum {
-    display: flex; gap: 3px; align-items: center;
-    margin-bottom: 10px; height: 5px; border-radius: 99px; overflow: hidden;
-  }
-  .cluster-spectrum-seg {
-    height: 100%; border-radius: 99px; flex-shrink: 0;
-  }
-  .cluster-coverage {
-    font-size: 10px; color: var(--text-muted);
-    margin-bottom: 8px; letter-spacing: 0.03em;
-    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
-  }
-  .cluster-coverage-pip {
-    display: inline-block; width: 6px; height: 6px;
-    border-radius: 50%; flex-shrink: 0;
-  }
-  .cluster-hl-bias {
-    font-size: 9px; color: var(--text-muted);
-    opacity: 0.75; margin-left: 3px; white-space: nowrap;
-  }
-  .cluster-more-btn {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 11px; color: var(--accent);
-    background: var(--accent-light); border: none;
-    border-radius: 99px; padding: 3px 10px;
-    cursor: pointer; margin-top: 6px;
-    transition: background 0.15s;
-  }
-  .cluster-more-btn:hover { background: #d8e4f5; }
-
-  /* ── Cluster source pills ── */
-  .cluster-source-pills {
-    display: flex; flex-wrap: wrap; gap: 4px;
-    margin-bottom: 8px;
-  }
+  .cluster-time { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+  .cluster-source-pills { display: flex; flex-wrap: wrap; gap: 3px; }
   .cluster-source-pill {
-    font-size: 9px; font-weight: 600;
-    letter-spacing: 0.04em;
+    font-size: 9px; font-weight: 600; letter-spacing: 0.04em;
     padding: 1px 6px; border-radius: 99px;
-    white-space: nowrap; opacity: 0.85;
-    border: 1px solid transparent;
+    white-space: nowrap; opacity: 0.85; border: 1px solid transparent;
   }
+  .cluster-overflow { font-size: 10px; color: var(--text-muted); }
+
+  /* card body — stacked bias sections */
+  .cluster-body {
+    border-top: 0.5px solid var(--border-light);
+    padding: 10px 14px 8px;
+    display: flex; flex-direction: column; gap: 2px;
+    max-height: 420px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cluster-body::-webkit-scrollbar { width: 3px; }
+  .cluster-body::-webkit-scrollbar-track { background: transparent; }
+  .cluster-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .cluster-bias-section { display: flex; flex-direction: column; gap: 2px; }
+  .cluster-bias-section + .cluster-bias-section { margin-top: 6px; }
+  .cluster-bias-divider {
+    height: 0.5px; background: var(--border-light); margin: 4px 0;
+  }
+  .cluster-bias-label {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; text-align: left;
+    padding: 2px 6px; border-radius: 4px; margin-bottom: 3px;
+    display: inline-block;
+  }
+  .cluster-bias-label.lbl-l { background: #E8EDF5; color: #2C4A7C; }
+  .cluster-bias-label.lbl-c { background: #F5F0E8; color: #6B5A2C; }
+  .cluster-bias-label.lbl-r { background: #F5E8E8; color: #5C2C2C; }
+  .cluster-bias-empty { font-size: 11px; color: var(--text-muted); padding: 4px 6px; }
+  .cluster-hl {
+    display: block; font-size: 12px; color: var(--text-secondary);
+    line-height: 1.35; padding: 5px 8px; border-radius: 6px;
+    text-decoration: none; border-left: 2px solid transparent;
+    background: var(--bg); transition: background 0.1s;
+    margin-bottom: 2px;
+  }
+  .cluster-hl:hover { background: var(--border-light); }
+  .cluster-hl.hl-l { border-left-color: #2C4A7C; }
+  .cluster-hl.hl-c { border-left-color: #A0621A; }
+  .cluster-hl.hl-r { border-left-color: #8B1A1A; }
+  .cluster-hl-src { font-size: 10px; color: var(--text-muted); margin-top: 3px; display: block; }
+  .cluster-chevron { display: none; }
+  /* legacy refs */
+  .cluster-headlines { display: none; }
+  .cluster-headline { display: none; }
 
 
   /* ── Manage sources panel ── */
@@ -2856,16 +2883,7 @@ function coverageBadgeHTML(group) {
   return '<div class="cluster-coverage">' + pips + '</div>';
 }
 
-function toggleClusterMore(cardId, btn) {
-  const more = document.getElementById(cardId + '-more');
-  if (!more) return;
-  const isHidden = more.style.display === 'none';
-  more.style.display = isHidden ? '' : 'none';
-  const count = more.querySelectorAll('.cluster-headline').length;
-  btn.textContent = isHidden
-    ? 'Show less'
-    : '+' + count + ' more perspective' + (count > 1 ? 's' : '');
-}
+
 
 function sourcePillsHTML(group) {
   return '<div class="cluster-source-pills">' +
@@ -2879,6 +2897,8 @@ function sourcePillsHTML(group) {
     }).join('') +
   '</div>';
 }
+
+
 
 function renderClusters() {
   const clusters = buildClusters();
@@ -2894,56 +2914,79 @@ function renderClusters() {
   if (badge) badge.textContent = clusters.length + ' stories';
   updateTrendingNewDot(clusters.length);
 
-  const clusterData = clusters.map(group => {
+  function biasSlot(bias) {
+    const r = biasRank(bias);
+    if (r <= 2) return 'l';
+    if (r >= 4) return 'r';
+    return 'c';
+  }
+
+  const MAX_PILLS = 5;
+
+  const html = clusters.map((group, idx) => {
+    const cardId = 'cluster-' + idx;
     const topic = clusterTopic(group);
-    const biasSorted = [...group].sort((a, b) => biasRank(a.bias) - biasRank(b.bias));
-    const mostRecent = [...group]
-      .filter(a => a.pubDate)
+    const mostRecent = [...group].filter(a => a.pubDate)
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0] || group[0];
     const timeStr = mostRecent?.pubDate ? relTime(mostRecent.pubDate) : '';
-    const cardId = 'cluster-' + Math.random().toString(36).slice(2, 7);
-    const topicId = cardId + '-topic';
-    const VISIBLE = 5;
 
-    const makeHeadlineHTML = function(a) {
+    const pillsHTML = group.slice(0, MAX_PILLS).map(a => {
       const src = SOURCES.find(s => s.id === a.srcId);
-      const biasLabel = src?.bias || '';
+      const color = src?.biasColor || a.srcColor || '#888';
+      const name = src?.shortName || (a.srcName.length > 10 ? a.srcName.slice(0, 9) + '\u2026' : a.srcName);
+      return '<span class="cluster-source-pill" style="background:' + color + '18;color:' + color + ';border-color:' + color + '30;">' + name + '</span>';
+    }).join('') + (group.length > MAX_PILLS
+      ? '<span class="cluster-overflow">+' + (group.length - MAX_PILLS) + '</span>'
+      : '');
+
+    const biasSorted = [...group].sort((a, b) => biasRank(a.bias) - biasRank(b.bias));
+    const leftArts   = biasSorted.filter(a => biasSlot(a.bias) === 'l');
+    const centerArts = biasSorted.filter(a => biasSlot(a.bias) === 'c');
+    const rightArts  = biasSorted.filter(a => biasSlot(a.bias) === 'r');
+
+    const makeHL = function(a, slot) {
       const safeLink = a.link.replace(/"/g, '&quot;');
-      return '<a class="cluster-headline" href="' + safeLink + '" target="_blank" rel="noopener">' +
-        '<div class="cluster-dot" style="background:' + (src?.biasColor || a.srcColor) + '"></div>' +
-        '<div>' +
-        '<div class="cluster-hl-text">' + a.title + '</div>' +
-        '<div class="cluster-hl-source">' + a.srcName + '<span class="cluster-hl-bias"> · ' + biasLabel + '</span></div>' +
-        '</div>' +
+      return '<a class="cluster-hl hl-' + slot + '" href="' + safeLink + '" target="_blank" rel="noopener">' +
+        a.title +
+        '<span class="cluster-hl-src">' + a.srcName + '</span>' +
         '</a>';
     };
 
-    const visibleHTML = biasSorted.slice(0, VISIBLE).map(makeHeadlineHTML).join('');
-    const hiddenHTML  = biasSorted.slice(VISIBLE).map(makeHeadlineHTML).join('');
-    const extraCount  = biasSorted.length - VISIBLE;
-
-    const moreToggle = extraCount > 0
-      ? '<div id="' + cardId + '-more" style="display:none">' + hiddenHTML + '</div>' +
-        '<button class="cluster-more-btn" onclick="toggleClusterMore(\'' + cardId + '\', this)">+' + extraCount + ' more perspective' + (extraCount > 1 ? 's' : '') + '</button>'
-      : '';
-
-    return {
-      html: '<div class="cluster-card">' +
-        '<div class="cluster-topic" id="' + topicId + '">' + topic + '</div>' +
-        '<div class="cluster-meta">' +
-          '<span class="cluster-source-count">' + group.length + ' sources</span>' +
-          '<span>' + timeStr + '</span>' +
-        '</div>' +
-        sourcePillsHTML(group) +
-        '<div class="cluster-headlines">' + visibleHTML + moreToggle + '</div>' +
-      '</div>',
-      topicId,
-      headlines: group.map(a => a.title),
+    const biasSection = function(arts, slot) {
+      if (!arts.length) return '';
+      const lbl = slot === 'l' ? '\u2190 Left' : slot === 'r' ? 'Right \u2192' : 'Center';
+      return '<div class="cluster-bias-section">' +
+        '<div class="cluster-bias-label lbl-' + slot + '">' + lbl + '</div>' +
+        arts.map(a => makeHL(a, slot)).join('') +
+        '</div>';
     };
-  });
 
-  container.innerHTML = clusterData.map(d => d.html).join('');
+    const sectionsHTML = [
+      biasSection(leftArts,   'l'),
+      leftArts.length && centerArts.length ? '<div class="cluster-bias-divider"></div>' : '',
+      biasSection(centerArts, 'c'),
+      (leftArts.length || centerArts.length) && rightArts.length ? '<div class="cluster-bias-divider"></div>' : '',
+      biasSection(rightArts,  'r'),
+    ].join('');
 
+    return '<div class="cluster-card" id="' + cardId + '">' +
+      '<div class="cluster-header">' +
+        '<div class="cluster-header-left">' +
+          '<div class="cluster-topic">' + topic + '</div>' +
+          '<div class="cluster-meta">' +
+            '<span class="cluster-source-count">' + group.length + ' sources</span>' +
+            (timeStr ? '<span class="cluster-time">' + timeStr + '</span>' : '') +
+            '<div class="cluster-source-pills">' + pillsHTML + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cluster-body">' +
+        sectionsHTML +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  container.innerHTML = html;
 }
 
 
