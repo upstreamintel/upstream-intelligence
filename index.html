@@ -107,6 +107,35 @@
   }
   .refresh-btn:hover { background: var(--bg); border-color: var(--text-muted); }
   .refresh-btn.spinning { opacity: 0.5; pointer-events: none; }
+
+  /* ── Load progress bar ── */
+  .progress-bar-wrap {
+    height: 3px; background: transparent;
+    position: sticky; top: 0; z-index: 99;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; width: 0%;
+    background: var(--accent);
+    transition: width 0.35s ease, background 0.4s ease, opacity 0.6s ease;
+    opacity: 1;
+  }
+  .progress-bar-fill.complete { background: #1A7A52; }
+  .progress-bar-fill.done { opacity: 0; }
+
+  /* ── Load pulse dot ── */
+  .load-dot {
+    display: none; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--accent);
+    margin-right: 5px; flex-shrink: 0;
+    vertical-align: middle; display: inline-block;
+  }
+  .load-dot.visible { animation: loadPulse 1.2s ease-in-out infinite; }
+  .load-dot.hidden { display: none; }
+  @keyframes loadPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.25; transform: scale(0.7); }
+  }
   .last-refreshed {
     font-size: 11px; color: var(--text-muted);
     white-space: nowrap;
@@ -1016,7 +1045,7 @@
     <div class="masthead-date" id="date-display"></div>
   </div>
   <div class="masthead-right">
-    <span class="article-count" id="total-count"></span>
+    <span class="article-count" id="total-count"><span class="load-dot" id="load-dot"></span></span>
     <button class="manage-btn" id="manage-btn" onclick="togglePanel()">⚙ Sources</button>
     <div class="layout-toggle" id="layout-toggle" title="Toggle layout density">
       <button class="lt-btn active" id="lt-compact" onclick="setLayout('compact')">
@@ -1049,6 +1078,7 @@
     <div id="sources-panel-list"></div>
   </div>
 </div>
+<div class="progress-bar-wrap" id="progress-bar-wrap"><div class="progress-bar-fill" id="progress-bar-fill"></div></div>
 
 <div class="verse-pill" id="verse-pill">
   <div class="verse-card" id="verse-card">
@@ -1072,7 +1102,7 @@
     <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
       <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
     </svg>
-    <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" autocomplete="off" />
+    <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" />
     <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">×</button>
   </div>
   <div class="weather-widget" id="weather-widget" onclick="toggleWeatherPopover(event)" title="Click to change location">
@@ -1710,18 +1740,14 @@ function highlight(text, query) {
   return text.replace(new RegExp(`(\\b${escaped})`, 'gi'), '<mark>$1</mark>');
 }
 
-let _searchDebounce = null;
 function onSearch(val) {
   searchQuery = val.trim().toLowerCase();
   const clearBtn = document.getElementById('search-clear');
   const wrap = document.getElementById('search-wrap');
   clearBtn.classList.toggle('visible', searchQuery.length > 0);
   wrap.classList.toggle('search-active', searchQuery.length > 0);
-  clearTimeout(_searchDebounce);
-  _searchDebounce = setTimeout(() => {
-    renderAll();
-    renderClusters();
-  }, 150);
+  renderAll();
+  renderClusters();
 }
 
 function clearSearch() {
@@ -1887,7 +1913,17 @@ function updateTotalCount() {
     if (data?.state === 'done') total += data.items.filter(passesFilter).length;
   });
   const el = document.getElementById('total-count');
-  if (el) el.textContent = total > 0 ? total + ' articles' : '';
+  const dot = document.getElementById('load-dot');
+  if (el) {
+    const countText = total > 0 ? total + ' articles' : '';
+    // Keep dot as first child, update the text node after it
+    if (dot) {
+      el.childNodes.forEach(n => { if (n.nodeType === 3) n.remove(); });
+      el.appendChild(document.createTextNode(countText));
+    } else {
+      el.textContent = countText;
+    }
+  }
   // Re-run clustering whenever a feed finishes loading
   const anyDone = SOURCES.some(s => store[s.id]?.state === 'done');
   if (anyDone) renderClusters();
@@ -2506,6 +2542,23 @@ function setDateDisplay() {
   document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', opts);
 }
 
+function setLoadProgress(done, total) {
+  const fill = document.getElementById('progress-bar-fill');
+  const dot  = document.getElementById('load-dot');
+  if (!fill) return;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  fill.style.width = pct + '%';
+  if (pct >= 100) {
+    fill.classList.add('complete');
+    setTimeout(() => { fill.classList.add('done'); }, 400);
+    setTimeout(() => { fill.style.width = '0%'; fill.classList.remove('complete','done'); }, 1200);
+    if (dot) { dot.classList.remove('visible'); dot.classList.add('hidden'); }
+  } else {
+    fill.classList.remove('complete','done');
+    if (dot) { dot.classList.add('visible'); dot.classList.remove('hidden'); }
+  }
+}
+
 function loadAll() {
   const btn = document.getElementById('refresh-btn');
   btn.textContent = '↻ Refreshing…';
@@ -2525,11 +2578,16 @@ function loadAll() {
     showEmptyState();
     return;
   }
+  const total = ordered.length;
+  let done = 0;
+  setLoadProgress(0, total);
   let pending = ordered.length;
   ordered.forEach((src, i) => {
     setTimeout(() => {
       fetchFeed(src).finally(() => {
+        done++;
         pending--;
+        setLoadProgress(done, total);
         if (pending === 0) {
           btn.textContent = '↻ Refresh';
           btn.classList.remove('spinning');
@@ -2559,7 +2617,7 @@ function loadAll() {
           }
         }
       });
-    }, i < 3 ? 0 : (i - 2) * 300);
+    }, i < 3 ? 0 : (i - 2) * 100);
   });
 }
 
