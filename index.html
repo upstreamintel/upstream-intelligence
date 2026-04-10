@@ -1484,11 +1484,10 @@ const UPSTREAM_KW = [
   // Upstream finance & planning (domain-specific phrases)
   'drilling budget','well cost','finding cost','reserve replacement',
   'proved reserves','type curve','decline curve',
-  // Technology & innovation (O&G-specific context)
-  'digital oilfield','digital twin','autonomous drilling','closed-loop drilling',
-  'machine learning','artificial intelligence','predictive maintenance',
-  'production optimization','reservoir characterization','subsurface model',
-  'fiber optic','distributed temperature','distributed acoustic',
+  // Technology — O&G-specific only (generic AI/ML terms removed to avoid false positives)
+  'digital oilfield','autonomous drilling','closed-loop drilling',
+  'reservoir characterization','subsurface model',
+  'distributed temperature','distributed acoustic',
   'real-time drilling','managed pressure drilling','rotary steerable',
   'geosteering','logging while drilling','measurement while drilling',
   'inflow control','intelligent well','smart well',
@@ -1641,7 +1640,7 @@ function parseXML(text) {
 }
 
 function tagItem(title, desc) {
-  const t = (title + ' ' + (desc||'')).toLowerCase();
+  const t = title.toLowerCase(); // title-only — desc scanning causes too many false positives
   // kwMatch requires a word boundary at the START of the keyword so short tokens
   // like 'irs', 'epa', 'sec' don't false-match inside longer words (Raiders, prepare).
   // Stems ending in partial suffixes ('annexat', 'deportat', 'geopolit') are left
