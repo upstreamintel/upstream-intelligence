@@ -1465,7 +1465,7 @@ const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza
 const MKT_KW = ['fed ','federal reserve','interest rate','inflation','gdp','recession','treasury','yield','dollar','nasdaq','s&p','dow jones','earnings','stock market','bond market','economy','tariff','trade war','imf','world bank'];
 const EN_KW  = ['oil price','crude','natural gas','lng','opec','permian','eagle ford','shale','refinery','pipeline','barrel','boe','upstream','downstream','energy','petroleum','eog','chevron','exxon','conocophillips','conoco','halliburton','schlumberger','energy sector'];
 const DOM_KW = ['trump','biden','congress','senate','house of representatives','white house','executive order','legislation','supreme court','fda','fbi','cia','doj','doge','rfk','hhs','medicare','medicaid','social security','immigration','border','deportat','tariff','maga','democrat','republican','gop','election','ballot','voting','governor','attorney general','epa','sec ','irs','federal budget','national debt','deficit','stimulus','infrastructure','obamacare','affordable care','vaccine mandate','abortion','gun control','second amendment','first amendment','constitution','federal court','appeals court'];
-const MIL_KW = ['airstrike','air strike','bombing','drone strike','missile strike','ground troops','military operation','special forces','warship','aircraft carrier','fighter jet','f-35','f-16','stealth bomber','navy seal','delta force','marines','army','battalion','brigade','artillery','tank','armored','naval','air force','defense ministry','joint chiefs','centcom','nato forces','deployment','casualties','killed in action','wounded','siege','offensive operation','counteroffensive','precision strike','hypersonic','ballistic','intercept','shoot down','war crime','collateral damage','bunker','fortif'];
+const MIL_KW = ['airstrike','air strike','bombing','drone strike','missile strike','ground troops','military operation','special forces','warship','aircraft carrier','fighter jet','f-35','f-16','stealth bomber','navy seal','delta force','marines','us army','battalion','brigade','artillery','armored','naval','air force','defense ministry','joint chiefs','centcom','nato forces','deployment','casualties','killed in action','wounded','siege','offensive operation','counteroffensive','precision strike','hypersonic','ballistic','intercept','shoot down','war crime','collateral damage','bunker','fortif'];
 const UPSTREAM_KW = [
   // Basin-specific (proper nouns — zero false positive risk)
   'eagle ford','permian basin','bakken','marcellus','utica shale','haynesville',
@@ -1642,13 +1642,24 @@ function parseXML(text) {
 
 function tagItem(title, desc) {
   const t = (title + ' ' + (desc||'')).toLowerCase();
+  // kwMatch requires a word boundary at the START of the keyword so short tokens
+  // like 'irs', 'epa', 'sec' don't false-match inside longer words (Raiders, prepare).
+  // Stems ending in partial suffixes ('annexat', 'deportat', 'geopolit') are left
+  // open on the right intentionally so they catch conjugated forms.
+  // Keywords that already use a trailing space trick ('fed ') are passed through
+  // as-is since the space acts as its own right-boundary.
+  function kwMatch(kw) {
+    if (kw.endsWith(' ')) return t.includes(kw); // space-anchored — keep as-is
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('\\b' + escaped, 'i').test(t);
+  }
   return {
-    fp:  FP_KW.some(k  => t.includes(k)),
-    mkt: MKT_KW.some(k => t.includes(k)),
-    en:  EN_KW.some(k  => t.includes(k)),
-    dom: DOM_KW.some(k => t.includes(k)),
-    mil: MIL_KW.some(k => t.includes(k)),
-    oil: UPSTREAM_KW.some(k => t.includes(k)),
+    fp:  FP_KW.some(kwMatch),
+    mkt: MKT_KW.some(kwMatch),
+    en:  EN_KW.some(kwMatch),
+    dom: DOM_KW.some(kwMatch),
+    mil: MIL_KW.some(kwMatch),
+    oil: UPSTREAM_KW.some(kwMatch),
   };
 }
 
