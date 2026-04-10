@@ -709,24 +709,18 @@
 
   /* ── Weather widget ── */
   .weather-widget {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 5px;
     font-size: 12px; color: var(--text-secondary);
-    white-space: nowrap; margin-left: auto;
-    padding-left: 16px;
-    border-left: 1px solid var(--border-light);
+    white-space: nowrap; cursor: pointer; position: relative;
+    padding-left: 10px; border-left: 1px solid var(--border-light);
   }
-  .weather-temp {
-    font-size: 16px; font-weight: 500;
-    color: var(--text-primary); line-height: 1;
-  }
-  .weather-icon { font-size: 16px; line-height: 1; }
-  .weather-detail { display: flex; flex-direction: column; gap: 1px; }
+  .weather-temp { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .weather-icon { font-size: 13px; line-height: 1; }
   .weather-hi-lo { font-size: 11px; color: var(--text-muted); }
   .weather-precip { font-size: 11px; color: var(--accent); }
   @media (max-width: 600px) { .weather-widget { display: none; } }
 
   /* ── Weather location popover ── */
-  .weather-widget { cursor: pointer; position: relative; }
   .weather-widget:hover .weather-temp { text-decoration: underline dotted; }
   .weather-popover {
     display: none; position: absolute;
@@ -1062,6 +1056,7 @@
         </svg>
       </button>
     </div>
+    <div class="weather-widget" id="weather-widget" onclick="toggleWeatherPopover(event)" title="Click to change location"><span class="weather-icon" id="weather-icon">⋯</span><span class="weather-temp" id="weather-temp">—°</span><span class="weather-hi-lo" id="weather-hi-lo"></span><span class="weather-precip" id="weather-precip"></span><div class="weather-popover" id="weather-popover" onclick="event.stopPropagation()"><div class="weather-pop-title">📍 Change location</div><div class="weather-pop-row"><input class="weather-pop-input" id="weather-loc-input" type="text" placeholder="City or zip code…" onkeydown="if(event.key==='Enter')saveWeatherLocation()" /><button class="weather-pop-btn" onclick="saveWeatherLocation()">Go</button></div><div class="weather-pop-status" id="weather-pop-status"></div></div></div>
     <button class="refresh-btn" id="refresh-btn" onclick="loadAll()">↻ Refresh</button>
     <span class="last-refreshed" id="last-refreshed"></span>
   </div>
@@ -1104,25 +1099,6 @@
     </svg>
     <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" />
     <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">×</button>
-  </div>
-  <div class="weather-widget" id="weather-widget" onclick="toggleWeatherPopover(event)" title="Click to change location">
-    <span class="weather-icon" id="weather-icon">⋯</span>
-    <div class="weather-detail">
-      <span class="weather-temp" id="weather-temp">—°</span>
-      <span class="weather-hi-lo" id="weather-hi-lo">H —° · L —°</span>
-      <span class="weather-precip" id="weather-precip"></span>
-      <span class="weather-loc-name" id="weather-loc-name"></span>
-    </div>
-    <div class="weather-popover" id="weather-popover" onclick="event.stopPropagation()">
-      <div class="weather-pop-title">📍 Change location</div>
-      <div class="weather-pop-row">
-        <input class="weather-pop-input" id="weather-loc-input" type="text"
-          placeholder="City or zip code…"
-          onkeydown="if(event.key==='Enter')saveWeatherLocation()" />
-        <button class="weather-pop-btn" onclick="saveWeatherLocation()">Go</button>
-      </div>
-      <div class="weather-pop-status" id="weather-pop-status"></div>
-    </div>
   </div>
 </div>
 
@@ -3219,9 +3195,8 @@ async function fetchWeather() {
     const precip = d.daily.precipitation_probability_max ? d.daily.precipitation_probability_max[0] : 0;
     document.getElementById('weather-icon').textContent     = weatherIcon(code);
     document.getElementById('weather-temp').textContent     = temp + '°F';
-    document.getElementById('weather-hi-lo').textContent    = 'H ' + hi + '° · L ' + lo + '°';
+    document.getElementById('weather-hi-lo').textContent    = 'H' + hi + '·L' + lo;
     document.getElementById('weather-precip').textContent   = precip > 0 ? precip + '% precip' : '';
-    document.getElementById('weather-loc-name').textContent = loc.name;
   } catch(e) {
     document.getElementById('weather-temp').textContent     = '--°';
     document.getElementById('weather-hi-lo').textContent    = 'Unavailable';
