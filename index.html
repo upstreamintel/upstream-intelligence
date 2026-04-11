@@ -1408,7 +1408,22 @@ const SOURCES = [
     url:'https://www.govtrack.us/events/events.rss?feeds=crs:6036',
     fallback: null,
     bias:'Government / Legislative', biasColor:'#2E4057',
-    group:'energy'
+    group:'energy',
+    // Only show articles whose title/desc contain at least one of these terms.
+    // Inclusive by design — gas prices, consumer fuel costs, and industry-critical
+    // legislation all qualify even if not strictly upstream E&P.
+    sourceFilter: [
+      'oil','gas','petroleum','crude','diesel','gasoline','fuel','refin',
+      'pipeline','drilling','drill','frack','hydraulic fractur',
+      'leasing','royalt','upstream','downstream','midstream',
+      'lng','liquefied natural gas','natural gas','propane','lpg',
+      'energy dominance','strategic petroleum reserve','spr',
+      'opec','fossil fuel','carbon','emission','methane','flaring',
+      'offshore','onshore','mineral rights','severance','blm',
+      'bureau of land management','interior department',
+      'price gouging','gas price','pump price','energy price',
+      'export terminal','import ban','sanction'
+    ]
   },
   {
     id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
@@ -1773,7 +1788,7 @@ function tagItem(title, desc) {
   };
 }
 
-function passesFilter(item) {
+function passesFilter(item, src) {
   const tg = tagItem(item.title, item.desc);
   const text = (item.title + ' ' + (item.desc||'')).toLowerCase();
 
@@ -1790,7 +1805,12 @@ function passesFilter(item) {
     activeFilter === 'military' ? tg.mil :
     activeFilter === 'oil'      ? tg.oil : true;
 
-  return matchesSearch && matchesPill;
+  // Per-source keyword filter — if the source defines sourceFilter, the article
+  // must contain at least one of the listed terms in its title or description.
+  // Uses substring matching (not whole-word) so "drilling" catches "drill" etc.
+  const matchesSourceFilter = !src?.sourceFilter || src.sourceFilter.some(kw => text.includes(kw));
+
+  return matchesSearch && matchesPill && matchesSourceFilter;
 }
 
 function highlight(text, query) {
@@ -1967,7 +1987,7 @@ function renderCard(src) {
   const card = document.getElementById('card-' + src.id);
   if (!card) return;
 
-  const filtered = data.items.filter(passesFilter);
+  const filtered = data.items.filter(item => passesFilter(item, src));
   const hasActiveFilter = activeFilter !== 'all' || searchQuery;
 
   // Hide card entirely when loaded but nothing matches
@@ -2020,7 +2040,7 @@ function updateTotalCount() {
   let total = 0;
   SOURCES.forEach(src => {
     const data = store[src.id];
-    if (data?.state === 'done') total += data.items.filter(passesFilter).length;
+    if (data?.state === 'done') total += data.items.filter(item => passesFilter(item, src)).length;
   });
   const el = document.getElementById('total-count');
   const dot = document.getElementById('load-dot');
@@ -2965,7 +2985,7 @@ function buildClusters() {
     const data = store[src.id];
     if (data?.state !== 'done') return;
     data.items
-      .filter(item => passesFilter(item))
+      .filter(item => passesFilter(item, src))
       .forEach(item => {
         allArticles.push({ ...item, srcId: src.id, srcName: src.name, srcColor: src.color, bias: src.bias });
       });
