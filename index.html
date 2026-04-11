@@ -1241,6 +1241,7 @@ const SOURCES = [
     bias:'Pro-Iran State', biasColor:'#1A5C8B',
     requiresProxy: true,
     noDate: true,
+    noArticleLinks: true,
     group:'geopolitical'
   },
   {
@@ -1868,6 +1869,21 @@ function buildArticleHTML(item, src) {
   const isNew = allFeedsSettled && item.link && !prevLinks.has(item.link);
   const dot = `<div class="article-dot-wrap">${isNew ? '<span class="article-new-dot"></span>' : ''}</div>`;
   const timeHTML = src?.noDate ? '' : `<span class="article-time">${relTime(item.pubDate)}</span>`;
+
+  if (src?.noArticleLinks) {
+    return `<div class="article" style="cursor:default;">
+      ${dot}
+      <div class="article-body">
+        <div class="article-title">${displayTitle}</div>
+        <div class="article-meta">
+          ${timeHTML}
+          ${badges}
+          <span style="font-size:10px;opacity:0.5;margin-left:4px;">visit site to read</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
   return `<a class="article" href="${safeLink}" target="_blank" rel="noopener">
     ${dot}
     <div class="article-body">
@@ -2732,6 +2748,7 @@ function checkBreaking() {
 
   SOURCES.forEach(src => {
     if (!isVisible(src.id)) return;
+    if (src.noArticleLinks) return; // skip sources with broken article links
     const data = store[src.id];
     if (data?.state !== 'done') return;
     data.items.forEach(item => {
