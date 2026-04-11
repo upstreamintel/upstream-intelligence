@@ -207,7 +207,7 @@
     display: none; padding: 0;
   }
   .search-clear.visible { display: block; }
-  .search-active .search-input { border-color: var(--accent); background: var(--accent-light); }
+  .search-active .search-input { border-color: var(--accent); background: var(--accent-light); width: 210px; }
   mark { background: #FFF176; color: inherit; border-radius: 2px; padding: 0 1px; }
 
   /* ── Main grid ── */
@@ -1746,19 +1746,32 @@ function highlight(text, query) {
   return text.replace(new RegExp(`(\\b${escaped})`, 'gi'), '<mark>$1</mark>');
 }
 
+let _searchDebounceTimer = null;
+let _searchClearing = false; // flag to ignore oninput re-fire during clearSearch
+
 function onSearch(val) {
-  searchQuery = val.trim().toLowerCase();
+  if (_searchClearing) return; // suppress oninput fired by programmatic value reset
   const clearBtn = document.getElementById('search-clear');
   const wrap = document.getElementById('search-wrap');
-  clearBtn.classList.toggle('visible', searchQuery.length > 0);
-  wrap.classList.toggle('search-active', searchQuery.length > 0);
-  renderAll();
-  renderClusters();
+  const trimmed = val.trim().toLowerCase();
+  // Update clear button and active state immediately on every keystroke
+  clearBtn.classList.toggle('visible', val.length > 0);
+  wrap.classList.toggle('search-active', val.length > 0);
+  // Debounce the expensive render — only fires after 200ms pause in typing
+  clearTimeout(_searchDebounceTimer);
+  _searchDebounceTimer = setTimeout(() => {
+    searchQuery = trimmed;
+    renderAll();
+    renderClusters();
+  }, 200);
 }
 
 function clearSearch() {
+  clearTimeout(_searchDebounceTimer);
+  _searchClearing = true;
   searchQuery = '';
   document.getElementById('search-input').value = '';
+  _searchClearing = false;
   document.getElementById('search-clear').classList.remove('visible');
   document.getElementById('search-wrap').classList.remove('search-active');
   renderAll();
