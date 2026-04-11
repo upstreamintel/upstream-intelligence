@@ -175,6 +175,13 @@
   .pill:hover { border-color: var(--text-muted); color: var(--text-primary); }
   .pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .pill.dimmed { opacity: 0.4; pointer-events: none; }
+  .pill-count {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.75;
+    margin-left: 3px;
+  }
   .article-count { font-size: 11px; color: var(--text-muted); margin-left: auto; }
 
   /* ── Search input ── */
@@ -1086,13 +1093,13 @@
 
 <div class="filter-bar">
   <span class="filter-label">Filter</span>
-  <button class="pill active" data-f="all"      onclick="setFilter('all')">All</button>
-  <button class="pill"        data-f="fp"       onclick="setFilter('fp')">Foreign policy</button>
-  <button class="pill"        data-f="markets"  onclick="setFilter('markets')">Markets</button>
-  <button class="pill"        data-f="energy"   onclick="setFilter('energy')">Energy</button>
-  <button class="pill"        data-f="domestic" onclick="setFilter('domestic')">US Politics</button>
-  <button class="pill"        data-f="military" onclick="setFilter('military')">Military / Defense</button>
-  <button class="pill"        data-f="oil"      onclick="setFilter('oil')">Upstream / E&P</button>
+  <button class="pill active" data-f="all"      onclick="setFilter('all')">All <span class="pill-count" id="pc-all"></span></button>
+  <button class="pill"        data-f="fp"       onclick="setFilter('fp')">Foreign policy <span class="pill-count" id="pc-fp"></span></button>
+  <button class="pill"        data-f="markets"  onclick="setFilter('markets')">Markets <span class="pill-count" id="pc-markets"></span></button>
+  <button class="pill"        data-f="energy"   onclick="setFilter('energy')">Energy <span class="pill-count" id="pc-energy"></span></button>
+  <button class="pill"        data-f="domestic" onclick="setFilter('domestic')">US Politics <span class="pill-count" id="pc-domestic"></span></button>
+  <button class="pill"        data-f="military" onclick="setFilter('military')">Military / Defense <span class="pill-count" id="pc-military"></span></button>
+  <button class="pill"        data-f="oil"      onclick="setFilter('oil')">Upstream / E&P <span class="pill-count" id="pc-oil"></span></button>
   <div class="search-wrap" id="search-wrap">
     <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
       <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
@@ -1774,12 +1781,34 @@ function setFilter(f) {
   renderClusters();
 }
 
+function updatePillCounts() {
+  const counts = { all: 0, fp: 0, markets: 0, energy: 0, domestic: 0, military: 0, oil: 0 };
+  SOURCES.forEach(src => {
+    const data = store[src.id];
+    if (data?.state !== 'done') return;
+    data.items.forEach(item => {
+      const tg = tagItem(item.title, item.desc);
+      counts.all++;
+      if (tg.fp)  counts.fp++;
+      if (tg.mkt) counts.markets++;
+      if (tg.en)  counts.energy++;
+      if (tg.dom) counts.domestic++;
+      if (tg.mil) counts.military++;
+      if (tg.oil) counts.oil++;
+    });
+  });
+  Object.entries(counts).forEach(([key, n]) => {
+    const el = document.getElementById(`pc-${key}`);
+    if (el) el.textContent = n > 0 ? n : '';
+  });
+}
+
 async function fetchFeed(src) {
   // Skip sources that need Vercel proxy when it's not yet enabled
   if (src.requiresProxy && !USE_VERCEL_PROXY) {
     store[src.id] = { state: 'error', items: [], proxyRequired: true };
     renderCard(src);
-    updateTotalCount();
+    updateTotalCount(); updatePillCounts();
     updateSourceBtn();
     return;
   }
@@ -1806,7 +1835,7 @@ async function fetchFeed(src) {
         });
         store[src.id] = { state: 'done', items };
         renderCard(src);
-        updateTotalCount();
+        updateTotalCount(); updatePillCounts();
         updateSourceBtn();
         checkBreaking();
         return;
@@ -1816,7 +1845,7 @@ async function fetchFeed(src) {
 
   store[src.id] = { state: 'error', items: [] };
   renderCard(src);
-  updateTotalCount();
+  updateTotalCount(); updatePillCounts();
   updateSourceBtn();
 }
 
@@ -1902,7 +1931,7 @@ function renderAll() {
     if (!isVisible(src.id)) return;
     renderCard(src);
   });
-  updateTotalCount();
+  updateTotalCount(); updatePillCounts();
 }
 
 function updateTotalCount() {
