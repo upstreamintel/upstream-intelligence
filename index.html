@@ -3614,6 +3614,11 @@ initWeather();
 initVerse();
 initMarketStrip();
 initStockStrip();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    checkBreaking();
+  }
+});
 </script>
 </body>
 </html>
