@@ -1388,6 +1388,18 @@ const SOURCES = [
     group:'energy'
   },
   {
+    // Railroad Commission of Texas — primary Texas O&G regulator. No RSS feed
+    // exists; the Vercel /api/rss proxy scrapes the /news/ HTML page directly.
+    // Covers monthly drilling permit stats, production records by county,
+    // enforcement actions, and rule changes. Low volume (~3-5/month), high signal.
+    id:'rrc', name:'RRC Texas', shortName:'RRC Texas', color:'#BF0A0A', site:'https://www.rrc.texas.gov',
+    url:'https://www.rrc.texas.gov/news/',
+    fallback: null,
+    requiresProxy: true,
+    bias:'Government / Regulator', biasColor:'#BF0A0A',
+    group:'energy'
+  },
+  {
     id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
     url:'https://www.enverus.com/blog-feed/',
     fallback:'https://www.enverus.com/feed/',
