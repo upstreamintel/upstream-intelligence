@@ -44,76 +44,63 @@ function getExtraHeaders(url) {
 }
 
 // ── RRC Texas HTML Scraper ──────────────────────────────────────────────────
-// The RRC news page has no RSS feed. This scrapes the /news/ HTML page and
-// returns items in the same shape as parseXML so the rest of the pipeline
-// doesn't need to change.
+// The RRC /news/ page has no RSS. Structure (verified 2026-04-11):
 //
-// Page structure (as of 2026):
-//   <h3><a href="/news/slug/">Title</a></h3>
-//   <p>Date\n\nDescription text...</p>
+//   <li>
+//     <a href="/news/slug/">### Title Text</a>
+//     \n  January 21, 2026\n\n  Description sentence...
+//   </li>
 //
-// We extract all <h3> anchor links under the news list, pair each with the
-// following <p> for date + description, then resolve relative URLs.
+// We extract each <li> that contains a /news/ link, then pull title,
+// date, and description from the text content around it.
 
 function parseRRCHtml(html) {
   const BASE = 'https://www.rrc.texas.gov';
   const items = [];
 
-  // Match each news item: <h3> containing an <a href="/news/...">Title</a>
-  // followed shortly by a date line and description paragraph
-  const itemRe = /<h3[^>]*>\s*<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*<\/h3>\s*([\w]+ \d{1,2},\s*\d{4})\s*([\s\S]*?)(?=<h3|<ul class="news-archive|$)/gi;
+  // Extract each <li>...</li> block (non-greedy, bounded)
+  const liBlocks = html.split('<li>');
 
-  let m;
-  while ((m = itemRe.exec(html)) !== null) {
-    const rawHref  = m[1].trim();
-    const rawTitle = m[2].replace(/###\s*/, '').replace(/<[^>]+>/g, '').trim();
-    const rawDate  = m[3].trim();
-    const rawDesc  = m[4].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  for (const block of liBlocks) {
+    // Must contain a /news/ link
+    const linkMatch = block.match(/<a\s+href="(\/news\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    if (!linkMatch) continue;
 
-    // Resolve relative URLs
-    const link = rawHref.startsWith('http') ? rawHref : `${BASE}${rawHref}`;
+    const href     = linkMatch[1];
+    const rawTitle = linkMatch[2]
+      .replace(/###\s*/g, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    // Parse the date string into ISO format for consistent sorting
-    const pubDate = new Date(rawDate).toISOString();
+    if (!rawTitle || rawTitle.length < 5) continue;
 
-    if (rawTitle && link) {
-      items.push({
-        title:   rawTitle,
-        link:    link,
-        pubDate: isNaN(new Date(rawDate)) ? '' : pubDate,
-        desc:    rawDesc.slice(0, 300),
-      });
+    // Text after the closing </a> contains date and description
+    const afterAnchor = block.slice(block.indexOf('</a>') + 4);
+    const cleanText   = afterAnchor.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // Date pattern: "Month DD, YYYY" or "Month DD YYYY"
+    const dateMatch = cleanText.match(/([A-Z][a-z]+ \d{1,2},?\s*\d{4})/);
+    const rawDate   = dateMatch ? dateMatch[1] : '';
+    const pubDate   = rawDate && !isNaN(new Date(rawDate)) ? new Date(rawDate).toISOString() : '';
+
+    // Description: text after the date
+    let desc = '';
+    if (dateMatch) {
+      desc = cleanText.slice(cleanText.indexOf(dateMatch[0]) + dateMatch[0].length)
+        .replace(/^\s+/, '')
+        .slice(0, 250)
+        .trim();
     }
-  }
 
-  // Fallback: simpler pattern for list-based structure (<li> with <a> + date)
-  if (!items.length) {
-    const liRe = /<li[^>]*>\s*<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*\n?\s*\(?([\w][\w\s,\-\/]+\d{4})\)?/gi;
-    while ((m = liRe.exec(html)) !== null) {
-      const rawHref  = m[1].trim();
-      const rawTitle = m[2].replace(/###\s*/, '').replace(/<[^>]+>/g, '').trim();
-      const rawDate  = m[3].trim();
-      const link     = rawHref.startsWith('http') ? rawHref : `${BASE}${rawHref}`;
-      const pubDate  = new Date(rawDate).toISOString();
-
-      if (rawTitle && link && rawTitle.length > 5) {
-        items.push({
-          title:   rawTitle,
-          link:    link,
-          pubDate: isNaN(new Date(rawDate)) ? '' : pubDate,
-          desc:    '',
-        });
-      }
-    }
+    const link = `${BASE}${href}`;
+    items.push({ title: rawTitle, link, pubDate, desc });
   }
 
   return items;
 }
 
 // ── XML Parser (runs in Node/Edge — no DOMParser) ──────────────────────────
-// Extracts <item> blocks then pulls fields with targeted regexes.
-// Handles CDATA, entity encoding, Atom <entry> tags, and dc:date.
-
 function decodeEntities(str) {
   return str
     .replace(/&amp;/g, '&')
@@ -134,10 +121,9 @@ function stripTags(str) {
 
 function extractField(block, ...tags) {
   for (const tag of tags) {
-    // Try CDATA first, then plain content
     const cdataRe = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i');
     const plainRe = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
-    const attrRe  = new RegExp(`<${tag}[^>]*href=["']([^"']+)["']`, 'i');  // Atom <link href="…">
+    const attrRe  = new RegExp(`<${tag}[^>]*href=["']([^"']+)["']`, 'i');
 
     let m = cdataRe.exec(block);
     if (m) return m[1].trim();
@@ -150,7 +136,6 @@ function extractField(block, ...tags) {
 }
 
 function parseXML(text) {
-  // Support both RSS <item> and Atom <entry>
   const itemRe = /<(?:item|entry)(?: [^>]*)?>[\s\S]*?<\/(?:item|entry)>/gi;
   const blocks = text.match(itemRe) || [];
 
@@ -159,7 +144,6 @@ function parseXML(text) {
     const link    = extractField(block, 'link', 'guid');
     const pubDate = extractField(block, 'pubDate', 'published', 'updated', 'dc:date', 'date');
     const desc    = stripTags(extractField(block, 'description', 'summary', 'content', 'content:encoded'));
-
     return { title, link, pubDate, desc };
   }).filter(i => i.title && i.link);
 }
@@ -177,7 +161,6 @@ function processItems(items) {
 
 // ── Main handler ────────────────────────────────────────────────────────────
 export default async function handler(req) {
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -198,7 +181,6 @@ export default async function handler(req) {
     });
   }
 
-  // Basic allowlist check — only fetch http(s) URLs
   let parsed;
   try {
     parsed = new URL(feedUrl);
@@ -215,7 +197,7 @@ export default async function handler(req) {
     });
   }
 
-  // Detect RRC news page — no RSS feed, parse HTML instead
+  // Detect RRC news page — parse HTML instead of XML
   const isRRC = parsed.hostname.includes('rrc.texas.gov') && parsed.pathname.includes('/news');
 
   try {
@@ -237,9 +219,7 @@ export default async function handler(req) {
     }
 
     const text = await res.text();
-
-    // Branch: HTML scrape for RRC, XML parse for everything else
-    const raw = isRRC ? parseRRCHtml(text) : parseXML(text);
+    const raw  = isRRC ? parseRRCHtml(text) : parseXML(text);
 
     if (!raw.length) {
       return new Response(JSON.stringify({ error: 'No items found in feed' }), {
@@ -255,7 +235,6 @@ export default async function handler(req) {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        // Cache 5 minutes at the edge — reduces cold fetch latency on repeat loads
         'Cache-Control': 's-maxage=300, stale-while-revalidate=60',
       },
     });
