@@ -3693,27 +3693,28 @@ initStockStrip();
 // tab's focus), so the 300ms setTimeout after pointerdown works fine there.
 //
 // Strategy: detect iOS once at startup, then branch the two paths cleanly.
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// Touch detection based on hardware capability — more reliable than UA sniffing.
+// Brave iOS spoofs its UA and may not contain iPhone/iPad strings, but
+// maxTouchPoints > 1 is a hardware signal that can't be faked by the browser.
+const isTouchDevice = navigator.maxTouchPoints > 1;
 
-document.getElementById('breaking-link').addEventListener('pointerdown', () => {
+document.getElementById('breaking-link').addEventListener('click', (e) => {
   const link = document.getElementById('breaking-link').href;
   if (!link || link === window.location.href) return;
 
-  if (isIOS) {
-    // iOS path: store the link; visibilitychange will consume it when user returns.
-    // Do NOT call markSeenMain() here — the tab is still visible at this point
-    // and we must wait until the user actually comes back.
+  if (isTouchDevice) {
+    // Touch path: store the link now; visibilitychange consumes it when user returns.
+    // Don't call markSeen yet — tab is still in foreground, user hasn't left.
     sessionStorage.setItem('breakingPendingSeen', link);
   } else {
-    // Desktop path: 300ms delay lets the click register and navigation begin,
-    // then advance the bar. sessionStorage not needed here.
+    // Desktop path: link opens in new tab, this tab stays focused, so
+    // visibilitychange won't fire. Use setTimeout to advance after click lands.
     setTimeout(() => markSeenMain(), 300);
   }
 });
 
-// iOS return handler — fires when user switches back to this tab from the article tab.
-// Only consumes the pending link if one was set by pointerdown above.
+// Touch return handler — fires when user switches back to this tab from the article.
+// Consumes the pending link only if set by the click handler above.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     const pending = sessionStorage.getItem('breakingPendingSeen');
