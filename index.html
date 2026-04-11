@@ -1467,7 +1467,7 @@ const SOURCES = [
 
 ];
 
-const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat'];
+const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat','samson option','samson'];
 const MKT_KW = ['the fed','federal reserve','interest rate','inflation','gdp','recession','treasury','yield','dollar','nasdaq','s&p','dow jones','earnings','stock market','bond market','economy','tariff','trade war','imf','world bank'];
 const EN_KW  = ['oil price','crude','natural gas','lng','opec','permian','eagle ford','shale','refinery','pipeline','barrel','boe','upstream','downstream','energy','petroleum','eog','chevron','exxon','conocophillips','conoco','halliburton','schlumberger','energy sector'];
 const DOM_KW = [
@@ -1489,6 +1489,7 @@ const DOM_KW = [
   'us deficit','us stimulus','us infrastructure',
   'us abortion','us gun control','us gun law',
   'us attorney general','us governor',
+  'swalwell','massie','atf','gun registry','smokeable','hemp ban',
   // Immigration — US context phrases
   'deportat','us immigration','border patrol','ice raid',
   'dhs','department of homeland',
@@ -1519,6 +1520,25 @@ const UPSTREAM_KW = [
   'real-time drilling','managed pressure drilling','rotary steerable',
   'geosteering','logging while drilling','measurement while drilling',
   'inflow control','intelligent well','smart well',
+];
+
+const SPORTS_KW = [
+  'nfl','nba','mlb','nhl','nascar','mls','ufc','espn','super bowl','world series',
+  'stanley cup','nba finals','playoffs','championship','tournament','bowl game',
+  'quarterback','touchdown','home run','slam dunk','hat trick','grand slam',
+  'masters','pga','lpga','wimbledon','us open','french open','australian open',
+  'world cup','champions league','premier league','la liga','bundesliga',
+  'olympics','olympic','athlete','roster','draft pick','trade deadline',
+  'coach fired','season opener','spring training','preseason',
+];
+const SCI_KW = [
+  'nasa','spacex','space launch','rocket launch','orbit','satellite','iss','lunar',
+  'astronaut','artemis','mars mission','james webb','telescope','asteroid','solar storm',
+  'nvidia','artificial intelligence','machine learning','large language model','chatgpt','openai',
+  'climate change','global warming','carbon emission','sea level','glacier',
+  'pandemic','virus','vaccine','fda approval','clinical trial','cancer research',
+  'quantum computing','semiconductor','microchip','cybersecurity','data breach','hack',
+  'earthquake','hurricane','tornado','wildfire','flood','natural disaster',
 ];
 
 let activeFilter = 'all';
@@ -1681,12 +1701,14 @@ function tagItem(title, desc) {
     return new RegExp('\\b' + escaped, 'i').test(t);
   }
   return {
-    fp:  FP_KW.some(kwMatch),
-    mkt: MKT_KW.some(kwMatch),
-    en:  EN_KW.some(kwMatch),
-    dom: DOM_KW.some(kwMatch),
-    mil: MIL_KW.some(kwMatch),
-    oil: UPSTREAM_KW.some(kwMatch),
+    fp:     FP_KW.some(kwMatch),
+    mkt:    MKT_KW.some(kwMatch),
+    en:     EN_KW.some(kwMatch),
+    dom:    DOM_KW.some(kwMatch),
+    mil:    MIL_KW.some(kwMatch),
+    oil:    UPSTREAM_KW.some(kwMatch),
+    sports: SPORTS_KW.some(kwMatch),
+    sci:    SCI_KW.some(kwMatch),
   };
 }
 
@@ -1800,15 +1822,16 @@ async function fetchFeed(src) {
 
 function buildArticleHTML(item, src) {
   const tg = tagItem(item.title, item.desc);
-  const tagged = tg.fp || tg.mkt || tg.en || tg.dom || tg.mil || tg.oil;
+  const tagged = tg.fp || tg.mkt || tg.en || tg.dom || tg.mil || tg.oil || tg.sports || tg.sci;
   const badges = [
-    tg.fp  ? `<span class="badge badge-fp">foreign policy</span>`   : '',
-    tg.mkt ? `<span class="badge badge-mkt">markets</span>`         : '',
-    tg.en  ? `<span class="badge badge-en">energy</span>`           : '',
-    tg.dom ? `<span class="badge badge-dom">us politics</span>`      : '',
-    tg.mil ? `<span class="badge badge-mil">military</span>`          : '',
-    tg.oil ? `<span class="badge badge-oil">upstream / e&p</span>`   : '',
-    !tagged ? `<span class="badge badge-other">other</span>`        : '',
+    tg.fp     ? `<span class="badge badge-fp">foreign policy</span>`  : '',
+    tg.mkt    ? `<span class="badge badge-mkt">markets</span>`        : '',
+    tg.en     ? `<span class="badge badge-en">energy</span>`          : '',
+    tg.dom    ? `<span class="badge badge-dom">us politics</span>`    : '',
+    tg.mil    ? `<span class="badge badge-mil">military</span>`       : '',
+    tg.oil    ? `<span class="badge badge-oil">upstream / e&p</span>` : '',
+    tg.sports ? `<span class="badge badge-other">sports</span>`       : '',
+    tg.sci    ? `<span class="badge badge-other" style="background:var(--tag-fp-bg);color:var(--tag-fp);">science / tech</span>` : '',
   ].join('');
   const safeLink = item.link.replace(/"/g,'&quot;');
   const displayTitle = highlight(item.title, searchQuery);
