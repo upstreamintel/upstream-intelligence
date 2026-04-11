@@ -3683,48 +3683,44 @@ initWeather();
 initVerse();
 initMarketStrip();
 initStockStrip();
+// iOS (Brave/Safari) opens target="_blank" links in a new tab — the Upstream
+// Intelligence tab stays alive in the background the entire time. This means:
+//   • bfcache / pageshow never fires (no navigation away from this tab)
+//   • setTimeout fires normally while the page is backgrounded — BAD for iOS
+//   • visibilitychange is the only reliable "user returned" signal on iOS
+//
+// Desktop opens links in the same tab (or a new window that doesn't affect this
+// tab's focus), so the 300ms setTimeout after pointerdown works fine there.
+//
+// Strategy: detect iOS once at startup, then branch the two paths cleanly.
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 document.getElementById('breaking-link').addEventListener('pointerdown', () => {
-  // Store the tapped link before the browser switches tabs or navigates.
-  // On iOS (Brave/Safari), target="_blank" opens a new tab — the page stays alive
-  // in the background. pageshow/bfcache never fires in this case.
-  // visibilitychange is the correct signal: hidden when user leaves, visible on return.
-  // The 300ms setTimeout below handles desktop same-tab navigation as a fallback.
   const link = document.getElementById('breaking-link').href;
-  if (link && link !== window.location.href) {
+  if (!link || link === window.location.href) return;
+
+  if (isIOS) {
+    // iOS path: store the link; visibilitychange will consume it when user returns.
+    // Do NOT call markSeenMain() here — the tab is still visible at this point
+    // and we must wait until the user actually comes back.
     sessionStorage.setItem('breakingPendingSeen', link);
-  }
-  setTimeout(() => {
-    sessionStorage.removeItem('breakingPendingSeen');
-    markSeenMain();
-  }, 300);
-});
-
-// bfcache restore — fires if user navigated same-tab and returned via back button.
-window.addEventListener('pageshow', (event) => {
-  if (event.persisted) {
-    const pending = sessionStorage.getItem('breakingPendingSeen');
-    if (pending) {
-      sessionStorage.removeItem('breakingPendingSeen');
-      markSeen(pending);
-    }
+  } else {
+    // Desktop path: 300ms delay lets the click register and navigation begin,
+    // then advance the bar. sessionStorage not needed here.
+    setTimeout(() => markSeenMain(), 300);
   }
 });
 
-// Primary iOS fix — fires when user returns to this tab after the article opened
-// in a new tab (target="_blank"). Consumes the pending seen link from pointerdown
-// and advances the bar without requiring a manual "✓ Seen" tap.
+// iOS return handler — fires when user switches back to this tab from the article tab.
+// Only consumes the pending link if one was set by pointerdown above.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     const pending = sessionStorage.getItem('breakingPendingSeen');
     if (pending) {
       sessionStorage.removeItem('breakingPendingSeen');
       markSeen(pending);
-      return;
     }
-    // Secondary pass: re-filter in case seenLinks was updated another way
-    const seenLinks = loadSeenLinks();
-    breakingMatches = breakingMatches.filter(m => !seenLinks.has(m.link));
-    renderBreakingBar();
   }
 });
 </script>
