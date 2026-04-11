@@ -1164,7 +1164,7 @@
 <div class="breaking-bar" id="breaking-bar">
   <div class="breaking-top">
     <span class="breaking-label">⚠ Breaking</span>
-    <a class="breaking-link" id="breaking-link" href="#" target="_blank" rel="noopener" onclick="markSeenMain()"></a>
+    <a class="breaking-link" id="breaking-link" href="#" target="_blank" rel="noopener"></a>
   </div>
   <div class="breaking-bottom">
     <span class="breaking-source" id="breaking-source"></span>
@@ -3614,6 +3614,10 @@ initWeather();
 initVerse();
 initMarketStrip();
 initStockStrip();
+document.getElementById('breaking-link').addEventListener('pointerdown', () => {
+  markSeenMain();
+});
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     const seenLinks = loadSeenLinks();
