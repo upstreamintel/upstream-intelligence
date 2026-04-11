@@ -1351,6 +1351,36 @@ const SOURCES = [
     group:'local'
   },
   {
+    // Texas Tribune — nonprofit, nonpartisan Texas journalism. Covers RRC rulings,
+    // Eagle Ford environmental/regulatory stories, mineral rights, and state energy
+    // policy in depth. Best substitute for a hyperlocal EF source until one is found.
+    id:'texastrib', name:'Texas Tribune', shortName:'TX Tribune', color:'#FFB300', site:'https://www.texastribune.org',
+    url:'https://feeds.texastribune.org/feeds/main/',
+    fallback:'https://www.texastribune.org/feed/',
+    bias:'Nonprofit / Nonpartisan', biasColor:'#FFB300',
+    group:'local'
+  },
+  {
+    // YourBasin — Nexstar local TV news for Midland/Odessa; covers rig count
+    // impacts on housing, workforce, local politics, and Permian infrastructure
+    // from a community perspective. Different angle from trade pubs already in deck.
+    id:'yourbasin', name:'YourBasin (Permian)', shortName:'YourBasin', color:'#6B4226', site:'https://www.yourbasin.com',
+    url:'https://www.yourbasin.com/feed/',
+    fallback:'https://www.yourbasin.com/news/feed/',
+    bias:'Shale Local – Permian', biasColor:'#6B4226',
+    group:'local'
+  },
+  {
+    // Basin Now — local digital newspaper for Vernal/Uintah County, UT; covers
+    // oil/gas infrastructure, rail capacity, and energy policy affecting the
+    // Uinta Basin from the ground level. Lower priority but unique local signal.
+    id:'basinnow', name:'Basin Now (Uinta)', shortName:'Basin Now', color:'#5C6B2E', site:'https://www.basinnow.com',
+    url:'https://www.basinnow.com/feed/',
+    fallback:'https://www.basinnow.com/news/feed/',
+    bias:'Shale Local – Uinta', biasColor:'#5C6B2E',
+    group:'local'
+  },
+  {
     id:'eia', name:'EIA Today in Energy', shortName:'EIA Energy', color:'#1F6F8B', site:'https://www.eia.gov/todayinenergy',
     url:'https://www.eia.gov/rss/todayinenergy.xml',
     fallback: null,
