@@ -3616,7 +3616,10 @@ initMarketStrip();
 initStockStrip();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    checkBreaking();
+    const bar = document.getElementById('breaking-bar');
+    if (bar.classList.contains('visible')) {
+      checkBreaking();
+    }
   }
 });
 </script>
