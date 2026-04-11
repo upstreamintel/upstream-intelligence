@@ -3684,19 +3684,22 @@ initVerse();
 initMarketStrip();
 initStockStrip();
 document.getElementById('breaking-link').addEventListener('pointerdown', () => {
-  // Store the current headline link before navigating away.
-  // On iOS/WebKit bfcache restore (persisted pageshow), markSeenMain() never fires
-  // because the 300ms timeout ran while the page was frozen. Storing it here lets
-  // the pageshow handler consume it on return instead.
+  // Store the tapped link before the browser switches tabs or navigates.
+  // On iOS (Brave/Safari), target="_blank" opens a new tab — the page stays alive
+  // in the background. pageshow/bfcache never fires in this case.
+  // visibilitychange is the correct signal: hidden when user leaves, visible on return.
+  // The 300ms setTimeout below handles desktop same-tab navigation as a fallback.
   const link = document.getElementById('breaking-link').href;
   if (link && link !== window.location.href) {
     sessionStorage.setItem('breakingPendingSeen', link);
   }
-  setTimeout(() => markSeenMain(), 300);
+  setTimeout(() => {
+    sessionStorage.removeItem('breakingPendingSeen');
+    markSeenMain();
+  }, 300);
 });
 
-// bfcache restore handler — fires on iOS/WebKit when user returns via back navigation.
-// event.persisted === true means the page was restored from frozen state, not reloaded.
+// bfcache restore — fires if user navigated same-tab and returned via back button.
 window.addEventListener('pageshow', (event) => {
   if (event.persisted) {
     const pending = sessionStorage.getItem('breakingPendingSeen');
@@ -3707,8 +3710,18 @@ window.addEventListener('pageshow', (event) => {
   }
 });
 
+// Primary iOS fix — fires when user returns to this tab after the article opened
+// in a new tab (target="_blank"). Consumes the pending seen link from pointerdown
+// and advances the bar without requiring a manual "✓ Seen" tap.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
+    const pending = sessionStorage.getItem('breakingPendingSeen');
+    if (pending) {
+      sessionStorage.removeItem('breakingPendingSeen');
+      markSeen(pending);
+      return;
+    }
+    // Secondary pass: re-filter in case seenLinks was updated another way
     const seenLinks = loadSeenLinks();
     breakingMatches = breakingMatches.filter(m => !seenLinks.has(m.link));
     renderBreakingBar();
