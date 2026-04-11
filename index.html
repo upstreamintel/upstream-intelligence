@@ -3615,7 +3615,7 @@ initVerse();
 initMarketStrip();
 initStockStrip();
 document.getElementById('breaking-link').addEventListener('pointerdown', () => {
-  markSeenMain();
+  setTimeout(() => markSeenMain(), 300);
 });
 
 document.addEventListener('visibilitychange', () => {
