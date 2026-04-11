@@ -1400,6 +1400,17 @@ const SOURCES = [
     group:'energy'
   },
   {
+    // GovTrack — U.S. Congress legislative tracker, oil & gas subject feed.
+    // Covers all bills tagged "Oil and gas" by the Library of Congress: new
+    // introductions, committee referrals, floor votes, and enacted legislation.
+    // Free public RSS, no API key required. Subject ID 6036 = Oil and gas.
+    id:'govtrack', name:'GovTrack (O&G Legislation)', shortName:'GovTrack', color:'#2E4057', site:'https://www.govtrack.us/congress/bills/subjects/oil_and_gas/6036',
+    url:'https://www.govtrack.us/events/events.rss?feeds=crs:6036',
+    fallback: null,
+    bias:'Government / Legislative', biasColor:'#2E4057',
+    group:'energy'
+  },
+  {
     id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
     url:'https://www.enverus.com/blog-feed/',
     fallback:'https://www.enverus.com/feed/',
