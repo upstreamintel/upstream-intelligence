@@ -16,6 +16,7 @@
  *   - Tasnim News     (same)
  *   - Middle East Monitor / Eye (auth headers stripped by browser proxies)
  *   - Energy Voice    (CF bot protection bypassed via Accept headers)
+ *   - RRC Texas       (no RSS feed — scraped from HTML news page)
  *   - All existing sources (replaces rss2json / corsproxy / allorigins)
  */
 
@@ -40,6 +41,73 @@ function getExtraHeaders(url) {
     }
   } catch {}
   return {};
+}
+
+// ── RRC Texas HTML Scraper ──────────────────────────────────────────────────
+// The RRC news page has no RSS feed. This scrapes the /news/ HTML page and
+// returns items in the same shape as parseXML so the rest of the pipeline
+// doesn't need to change.
+//
+// Page structure (as of 2026):
+//   <h3><a href="/news/slug/">Title</a></h3>
+//   <p>Date\n\nDescription text...</p>
+//
+// We extract all <h3> anchor links under the news list, pair each with the
+// following <p> for date + description, then resolve relative URLs.
+
+function parseRRCHtml(html) {
+  const BASE = 'https://www.rrc.texas.gov';
+  const items = [];
+
+  // Match each news item: <h3> containing an <a href="/news/...">Title</a>
+  // followed shortly by a date line and description paragraph
+  const itemRe = /<h3[^>]*>\s*<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*<\/h3>\s*([\w]+ \d{1,2},\s*\d{4})\s*([\s\S]*?)(?=<h3|<ul class="news-archive|$)/gi;
+
+  let m;
+  while ((m = itemRe.exec(html)) !== null) {
+    const rawHref  = m[1].trim();
+    const rawTitle = m[2].replace(/###\s*/, '').replace(/<[^>]+>/g, '').trim();
+    const rawDate  = m[3].trim();
+    const rawDesc  = m[4].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+    // Resolve relative URLs
+    const link = rawHref.startsWith('http') ? rawHref : `${BASE}${rawHref}`;
+
+    // Parse the date string into ISO format for consistent sorting
+    const pubDate = new Date(rawDate).toISOString();
+
+    if (rawTitle && link) {
+      items.push({
+        title:   rawTitle,
+        link:    link,
+        pubDate: isNaN(new Date(rawDate)) ? '' : pubDate,
+        desc:    rawDesc.slice(0, 300),
+      });
+    }
+  }
+
+  // Fallback: simpler pattern for list-based structure (<li> with <a> + date)
+  if (!items.length) {
+    const liRe = /<li[^>]*>\s*<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*\n?\s*\(?([\w][\w\s,\-\/]+\d{4})\)?/gi;
+    while ((m = liRe.exec(html)) !== null) {
+      const rawHref  = m[1].trim();
+      const rawTitle = m[2].replace(/###\s*/, '').replace(/<[^>]+>/g, '').trim();
+      const rawDate  = m[3].trim();
+      const link     = rawHref.startsWith('http') ? rawHref : `${BASE}${rawHref}`;
+      const pubDate  = new Date(rawDate).toISOString();
+
+      if (rawTitle && link && rawTitle.length > 5) {
+        items.push({
+          title:   rawTitle,
+          link:    link,
+          pubDate: isNaN(new Date(rawDate)) ? '' : pubDate,
+          desc:    '',
+        });
+      }
+    }
+  }
+
+  return items;
 }
 
 // ── XML Parser (runs in Node/Edge — no DOMParser) ──────────────────────────
@@ -147,14 +215,18 @@ export default async function handler(req) {
     });
   }
 
+  // Detect RRC news page — no RSS feed, parse HTML instead
+  const isRRC = parsed.hostname.includes('rrc.texas.gov') && parsed.pathname.includes('/news');
+
   try {
     const res = await fetch(feedUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; UpstreamIntelligence/2.0; +https://upstreamintel.github.io)',
-        'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+        'Accept': isRRC
+          ? 'text/html, */*'
+          : 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
         ...getExtraHeaders(feedUrl),
       },
-      // Edge runtime fetch has a 15s implicit timeout per vercel.json maxDuration
     });
 
     if (!res.ok) {
@@ -165,7 +237,9 @@ export default async function handler(req) {
     }
 
     const text = await res.text();
-    const raw  = parseXML(text);
+
+    // Branch: HTML scrape for RRC, XML parse for everything else
+    const raw = isRRC ? parseRRCHtml(text) : parseXML(text);
 
     if (!raw.length) {
       return new Response(JSON.stringify({ error: 'No items found in feed' }), {
