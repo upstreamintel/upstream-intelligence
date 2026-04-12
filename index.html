@@ -1157,24 +1157,6 @@
   <button class="verse-pill-btn" id="verse-pill-btn" onclick="toggleVersePill()">✦ Verse</button>
 </div>
 
-<div class="filter-bar">
-  <span class="filter-label">Filter</span>
-  <button class="pill active" data-f="all"      onclick="setFilter('all')">All <span class="pill-count" id="pc-all"></span></button>
-  <button class="pill"        data-f="fp"       onclick="setFilter('fp')">Foreign policy <span class="pill-count" id="pc-fp"></span></button>
-  <button class="pill"        data-f="markets"  onclick="setFilter('markets')">Markets <span class="pill-count" id="pc-markets"></span></button>
-  <button class="pill"        data-f="energy"   onclick="setFilter('energy')">Energy <span class="pill-count" id="pc-energy"></span></button>
-  <button class="pill"        data-f="domestic" onclick="setFilter('domestic')">US Politics <span class="pill-count" id="pc-domestic"></span></button>
-  <button class="pill"        data-f="military" onclick="setFilter('military')">Military / Defense <span class="pill-count" id="pc-military"></span></button>
-  <button class="pill"        data-f="oil"      onclick="setFilter('oil')">Upstream / E&P <span class="pill-count" id="pc-oil"></span></button>
-  <div class="search-wrap" id="search-wrap">
-    <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-      <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
-    </svg>
-    <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" />
-    <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">×</button>
-  </div>
-</div>
-
 <div class="market-strip" id="market-strip">
   <!-- WTI -->
   <div class="market-item">
@@ -1268,6 +1250,24 @@
   </div>
   <div id="voices-body">
     <div class="grid voices-grid" id="voices-grid"></div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter</span>
+  <button class="pill active" data-f="all"      onclick="setFilter('all')">All <span class="pill-count" id="pc-all"></span></button>
+  <button class="pill"        data-f="fp"       onclick="setFilter('fp')">Foreign policy <span class="pill-count" id="pc-fp"></span></button>
+  <button class="pill"        data-f="markets"  onclick="setFilter('markets')">Markets <span class="pill-count" id="pc-markets"></span></button>
+  <button class="pill"        data-f="energy"   onclick="setFilter('energy')">Energy <span class="pill-count" id="pc-energy"></span></button>
+  <button class="pill"        data-f="domestic" onclick="setFilter('domestic')">US Politics <span class="pill-count" id="pc-domestic"></span></button>
+  <button class="pill"        data-f="military" onclick="setFilter('military')">Military / Defense <span class="pill-count" id="pc-military"></span></button>
+  <button class="pill"        data-f="oil"      onclick="setFilter('oil')">Upstream / E&P <span class="pill-count" id="pc-oil"></span></button>
+  <div class="search-wrap" id="search-wrap">
+    <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
+    </svg>
+    <input class="search-input" id="search-input" type="text" placeholder="Search headlines…" oninput="onSearch(this.value)" />
+    <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">×</button>
   </div>
 </div>
 
@@ -3279,11 +3279,10 @@ function buildClusters() {
     if (!isVisible(src.id)) return;
     const data = store[src.id];
     if (data?.state !== 'done') return;
-    data.items
-      .filter(item => passesFilter(item, src))
-      .forEach(item => {
-        allArticles.push({ ...item, srcId: src.id, srcName: src.name, srcColor: src.color, bias: src.bias });
-      });
+    // Trending clusters always use all articles regardless of active filter
+    data.items.forEach(item => {
+      allArticles.push({ ...item, srcId: src.id, srcName: src.name, srcColor: src.color, bias: src.bias });
+    });
   });
   if (allArticles.length === 0) return [];
 
