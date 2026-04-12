@@ -1867,6 +1867,14 @@ const PROXY_STRATEGIES = USE_VERCEL_PROXY
       }),
     ]
   : [
+  // 0. YouTube Atom — direct fetch, no proxy needed for youtube.com/feeds URLs
+  feedUrl => {
+    if (!feedUrl.includes('youtube.com/feeds')) throw new Error('skip');
+    return {
+      url: feedUrl,
+      parse: async res => parseAtom(await res.text())
+    };
+  },
   // 1. rss2json — clean URL only, no extra params (unknown params break free tier)
   feedUrl => ({
     url: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
@@ -1892,6 +1900,23 @@ const PROXY_STRATEGIES = USE_VERCEL_PROXY
     parse: async res => parseXML(await res.text())
   }),
 ];
+
+function parseAtom(text) {
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  const entries = [...doc.querySelectorAll('entry')];
+  if (!entries.length) throw new Error('no entries');
+  return entries.map(el => {
+    const get = tag => el.querySelector(tag)?.textContent?.trim() || '';
+    const link = el.querySelector('link[rel="alternate"]')?.getAttribute('href')
+              || el.querySelector('link')?.getAttribute('href') || '';
+    return {
+      title: get('title'),
+      link,
+      pubDate: get('published') || get('updated'),
+      desc: get('media\\:description') || get('summary') || '',
+    };
+  }).filter(i => i.title);
+}
 
 function parseXML(text) {
   const doc = new DOMParser().parseFromString(text, 'text/xml');
