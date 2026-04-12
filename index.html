@@ -1977,7 +1977,8 @@ const SUMMARIZE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 let _sumCounter = 0; // Unique counter for summary panel IDs — reset on each renderCard call
 
 async function claudeSummarize(articleUrl, promptTemplate, targetEl, btn) {
-  const cacheKey = 'sum_' + btoa(articleUrl).replace(/[^a-zA-Z0-9]/g, '').slice(0, 60);
+  // Hash the full URL to avoid collisions from truncation
+  const cacheKey = 'sum_' + Array.from(articleUrl).reduce((h,c) => (Math.imul(31,h) + c.charCodeAt(0)) | 0, 0).toString(36) + '_' + articleUrl.length;
 
   // ── Check cache ──
   try {
