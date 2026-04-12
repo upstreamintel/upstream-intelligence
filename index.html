@@ -2018,30 +2018,10 @@ async function claudeSummarize(articleUrl, promptTemplate, targetEl, btn) {
   }
 }
 
-// Convert a GovTrack bill URL to the Congress.gov CRS summary page.
-// GovTrack links look like: https://www.govtrack.us/congress/bills/119/hr1422
-// Congress.gov CRS URL:     https://www.congress.gov/bill/119th-congress/house-bill/1422
+// For GovTrack URLs, use the GovTrack page directly — Congress.gov blocks server-side fetches.
 // For RRC or other URLs, pass through unchanged.
 function buildSummarizeUrl(url) {
-  try {
-    const m = url.match(/govtrack\.us\/congress\/bills\/(\d+)\/(hr|s|hres|sres|hconres|sconres|hjres|sjres)(\d+)/i);
-    if (!m) return url;
-    const congress = m[1];
-    const typeRaw = m[2].toLowerCase();
-    const num = m[3];
-    const typeMap = {
-      hr: 'house-bill', s: 'senate-bill',
-      hres: 'house-resolution', sres: 'senate-resolution',
-      hconres: 'house-concurrent-resolution', sconres: 'senate-concurrent-resolution',
-      hjres: 'house-joint-resolution', sjres: 'senate-joint-resolution',
-    };
-    const billType = typeMap[typeRaw] || 'house-bill';
-    // Ordinal suffix for congress number
-    const suffix = congress.endsWith('1') && congress !== '11' ? 'st'
-                 : congress.endsWith('2') && congress !== '12' ? 'nd'
-                 : congress.endsWith('3') && congress !== '13' ? 'rd' : 'th';
-    return `https://www.congress.gov/bill/${congress}${suffix}-congress/${billType}/${num}`;
-  } catch(e) { return url; }
+  return url; // GovTrack pages are scraper-friendly; pass all URLs through as-is
 }
 
 function renderSummary(targetEl, btn, text) {
