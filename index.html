@@ -1825,9 +1825,9 @@ function passesFilter(item, src) {
   const tg = tagItem(item.title, item.desc);
   const text = (item.title + ' ' + (item.desc||'')).toLowerCase();
 
-  // Whole word matching — "war" matches "war" but not "warns" or "award"
+  // Whole word matching — "UFC" matches "UFC" but not "UFCW"; boundary on both sides
   const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const wordMatch = new RegExp(`\\b${escaped}`, 'i');
+  const wordMatch = new RegExp(`\\b${escaped}\\b`, 'i');
   const matchesSearch = !searchQuery || wordMatch.test(item.title + ' ' + (item.desc||''));
   const matchesPill =
     activeFilter === 'all'      ? true :
@@ -1849,7 +1849,7 @@ function passesFilter(item, src) {
 function highlight(text, query) {
   if (!query) return text;
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp(`(\\b${escaped})`, 'gi'), '<mark>$1</mark>');
+  return text.replace(new RegExp(`(\\b${escaped}\\b)`, 'gi'), '<mark>$1</mark>');
 }
 
 let _searchDebounceTimer = null;
@@ -1884,6 +1884,15 @@ function clearSearch() {
   renderClusters();
 }
 
+// Compact relative time for cluster headlines — no absolute date tooltip
+function relTimeShort(str) {
+  if (!str) return '';
+  const d = new Date(str);
+  if (isNaN(d)) return '';
+  const m = Math.floor((Date.now() - d) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? m + 'm ago' : m < 1440 ? Math.floor(m/60) + 'h ago' : Math.floor(m/1440) + 'd ago';
+}
+
 function relTime(str) {
   if (!str) return '';
   const d = new Date(str);
@@ -1907,6 +1916,7 @@ function updatePillCounts() {
     const data = store[src.id];
     if (data?.state !== 'done') return;
     data.items.forEach(item => {
+      if (!passesFilter(item, src)) return; // apply sourceFilter so pill matches header
       const tg = tagItem(item.title, item.desc);
       counts.all++;
       if (tg.fp)  counts.fp++;
@@ -3321,9 +3331,18 @@ function renderClusters() {
 
     const makeHL = function(a, slot) {
       const safeLink = a.link.replace(/"/g, '&quot;');
+      const src = SOURCES.find(s => s.id === a.srcId);
+      const timeLabel = a.pubDate ? relTimeShort(a.pubDate) + ' · ' : '';
+      // Blocked-direct sources: disable link, show visit-site note instead
+      if (src?.noArticleLinks) {
+        return '<div class="cluster-hl hl-' + slot + '" style="cursor:default;">' +
+          a.title +
+          '<span class="cluster-hl-src">' + timeLabel + a.srcName + ' · <span style="opacity:0.6;font-style:italic;">visit site to read</span></span>' +
+          '</div>';
+      }
       return '<a class="cluster-hl hl-' + slot + '" href="' + safeLink + '" target="_blank" rel="noopener">' +
         a.title +
-        '<span class="cluster-hl-src">' + a.srcName + '</span>' +
+        '<span class="cluster-hl-src">' + timeLabel + a.srcName + '</span>' +
         '</a>';
     };
 
