@@ -553,6 +553,15 @@
   }
   .trending-section.collapsed .trending-collapsed-badge { display: inline; }
   .trending-section.collapsed .trending-sub { display: none; }
+  .voices-collapsed-badge {
+    display: none;
+    font-size: 10px; font-weight: 500;
+    background: var(--accent-light); color: var(--accent);
+    padding: 2px 8px; border-radius: 99px;
+    white-space: nowrap;
+  }
+  .voices-section.collapsed .voices-collapsed-badge { display: inline; }
+  .voices-section.collapsed .voices-sub { display: none; }
   .trending-title {
     font-family: 'Spectral', serif;
     font-size: 15px; font-weight: 500; color: var(--text-primary);
@@ -1246,6 +1255,7 @@
   <div class="voices-header" onclick="toggleVoicesSection()">
     <span class="voices-title">✦ Voices</span>
     <span class="voices-sub" id="voices-sub"></span>
+    <span class="voices-collapsed-badge" id="voices-collapsed-badge"></span>
     <button class="voices-collapse-btn" id="voices-collapse-btn">▲ collapse</button>
   </div>
   <div id="voices-body">
@@ -1641,8 +1651,8 @@ const SOURCES = [
     group:'voices'
   },
   {
-    id:'sac', name:'Jeffrey Sachs', shortName:'J. Sachs', color:'#5C3D8B', site:'https://www.jeffsachs.org',
-    url:'https://news.google.com/rss/search?q=%22Jeffrey+Sachs%22&hl=en-US&gl=US&ceid=US:en',
+    id:'sac', name:'Jeffrey Sachs', shortName:'J. Sachs', color:'#5C3D8B', site:'https://www.jeffsachs.org/interviewsandmedia',
+    url:'https://www.jeffsachs.org/interviewsandmedia?format=rss',
     fallback:'https://jeffdsachs.substack.com/feed',
     bias:'Progressive / Realist', biasColor:'#2C6B8B',
     group:'voices'
@@ -2749,7 +2759,8 @@ function toggleVoicesSection() {
   const btn     = document.getElementById('voices-collapse-btn');
   const section = document.getElementById('voices-section');
   if (!body) return;
-  const isCollapsed = body.style.display === 'none';
+  const isCollapsed = section.classList.contains('collapsed');
+  section.classList.toggle('collapsed', !isCollapsed);
   body.style.display = isCollapsed ? '' : 'none';
   btn.textContent = isCollapsed ? '▲ collapse' : '▼ expand';
   try { localStorage.setItem(VOICES_KEY, isCollapsed ? '0' : '1'); } catch(e) {}
@@ -2760,17 +2771,22 @@ function initVoices() {
   try {
     const collapsed = localStorage.getItem(VOICES_KEY) === '1';
     if (collapsed) {
-      const body = document.getElementById('voices-body');
-      const btn  = document.getElementById('voices-collapse-btn');
-      if (body) body.style.display = 'none';
-      if (btn)  btn.textContent = '▼ expand';
+      const body    = document.getElementById('voices-body');
+      const btn     = document.getElementById('voices-collapse-btn');
+      const section = document.getElementById('voices-section');
+      if (body)    body.style.display = 'none';
+      if (btn)     btn.textContent = '▼ expand';
+      if (section) section.classList.add('collapsed');
     }
   } catch(e) {}
 
-  // Update sub-label with voice count
+  // Update sub-label and collapsed badge with voice count
   const voicesSources = SOURCES.filter(s => s.group === 'voices' && isVisible(s.id));
+  const count = voicesSources.length;
   const sub = document.getElementById('voices-sub');
-  if (sub) sub.textContent = voicesSources.length + ' commentators';
+  if (sub) sub.textContent = count + ' commentators';
+  const badge = document.getElementById('voices-collapsed-badge');
+  if (badge) badge.textContent = count + ' commentators';
 }
 
 function setLayout(mode) {
