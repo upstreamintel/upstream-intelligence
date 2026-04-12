@@ -482,6 +482,39 @@
     .breaking-dropdown { position: relative !important; top: auto !important; max-height: 260px; overflow-y: auto; }
   }
 
+  /* ── Voices section ── */
+  .voices-section {
+    padding: 20px 0 4px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .voices-header {
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;
+    cursor: pointer; user-select: none;
+    padding-left: 32px; padding-right: 32px;
+  }
+  @media (max-width: 600px) {
+    .voices-section { padding-top: 14px; }
+    .voices-header { padding-left: 16px; padding-right: 16px; }
+  }
+  .voices-header:hover .voices-title { opacity: 0.75; }
+  .voices-title {
+    font-family: 'Spectral', serif;
+    font-size: 11px; font-weight: 500; color: var(--text-primary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .voices-sub { font-size: 11px; color: var(--text-muted); }
+  .voices-collapse-btn {
+    margin-left: auto; font-size: 11px; color: var(--text-muted);
+    background: none; border: none; cursor: pointer; padding: 0;
+    font-family: 'DM Sans', sans-serif; flex-shrink: 0;
+  }
+  .voices-grid {
+    padding: 0 32px 16px;
+  }
+  @media (max-width: 600px) {
+    .voices-grid { padding-left: 16px; padding-right: 16px; }
+  }
+
   /* ── Trending section ── */
   .trending-section {
     padding: 20px 0 4px;
@@ -1227,6 +1260,17 @@
   </div>
 </div>
 
+<div class="voices-section" id="voices-section">
+  <div class="voices-header" onclick="toggleVoicesSection()">
+    <span class="voices-title">✦ Voices</span>
+    <span class="voices-sub" id="voices-sub"></span>
+    <button class="voices-collapse-btn" id="voices-collapse-btn">▲ collapse</button>
+  </div>
+  <div id="voices-body">
+    <div class="grid voices-grid" id="voices-grid"></div>
+  </div>
+</div>
+
 <div class="main">
   <div class="grid" id="grid"></div>
 </div>
@@ -1574,6 +1618,36 @@ const SOURCES = [
     group:'geopolitical'
   },
 
+  // ── Voices — individual commentators via Substack / personal site RSS ──────
+  {
+    id:'mac', name:'Col. Macgregor', shortName:'Macgregor', color:'#8B1A1A', site:'https://macgregorwarrior.substack.com',
+    url:'https://macgregorwarrior.substack.com/feed',
+    fallback: null,
+    bias:'Anti-Interventionist', biasColor:'#4A4A4A',
+    group:'voices'
+  },
+  {
+    id:'nap', name:'Judge Napolitano', shortName:'Napolitano', color:'#2C4A7C', site:'https://judgenap.substack.com',
+    url:'https://judgenap.substack.com/feed',
+    fallback: null,
+    bias:'Libertarian', biasColor:'#6B4A2C',
+    group:'voices'
+  },
+  {
+    id:'sho', name:'Scott Horton', shortName:'S. Horton', color:'#1A5C3A', site:'https://scotthorton.org',
+    url:'https://scotthorton.org/feed',
+    fallback:'https://scotthorton.substack.com/feed',
+    bias:'Anti-Interventionist', biasColor:'#4A4A4A',
+    group:'voices'
+  },
+  {
+    id:'sac', name:'Jeffrey Sachs', shortName:'J. Sachs', color:'#5C3D8B', site:'https://www.jeffsachs.org',
+    url:'https://news.google.com/rss/search?q=%22Jeffrey+Sachs%22&hl=en-US&gl=US&ceid=US:en',
+    fallback:'https://jeffdsachs.substack.com/feed',
+    bias:'Progressive / Realist', biasColor:'#2C6B8B',
+    group:'voices'
+  },
+
 ];
 
 const FP_KW  = ['ukraine','russia','nato','china','taiwan','iran','israel','gaza','sanction','diplomat','foreign policy','treaty','military','geopolit','pentagon','kremlin','beijing','nuclear','missile','alliance','troops','conflict','middle east','indo-pacific','g7','g20','un security','veto','ceasefire','offensive','invasion','coup','regime','bilateral','multilateral','security council','state department','secretary of state','foreign minister','sovereignty','annexat','samson option','samson'];
@@ -1916,7 +1990,8 @@ function updatePillCounts() {
     const data = store[src.id];
     if (data?.state !== 'done') return;
     data.items.forEach(item => {
-      if (!passesFilter(item, src)) return; // apply sourceFilter so pill matches header
+      if (src.group === 'voices') return; // voices counted separately, not in pill counts
+    if (!passesFilter(item, src)) return; // apply sourceFilter so pill matches header
       const tg = tagItem(item.title, item.desc);
       counts.all++;
       if (tg.fp)  counts.fp++;
@@ -2140,11 +2215,15 @@ function renderCard(src) {
   const card = document.getElementById('card-' + src.id);
   if (!card) return;
 
-  const filtered = data.items.filter(item => passesFilter(item, src));
+  // Voices cards ignore filter pills — always show all articles
+  const isVoice = src.group === 'voices';
+  const filtered = isVoice
+    ? data.items
+    : data.items.filter(item => passesFilter(item, src));
   const hasActiveFilter = activeFilter !== 'all' || searchQuery;
 
-  // Hide card entirely when loaded but nothing matches
-  if (data.state === 'done' && filtered.length === 0 && hasActiveFilter) {
+  // Hide non-voices card entirely when loaded but nothing matches
+  if (!isVoice && data.state === 'done' && filtered.length === 0 && hasActiveFilter) {
     card.style.display = 'none';
     return;
   }
@@ -2189,9 +2268,12 @@ function renderAll() {
   updateTotalCount(); updatePillCounts();
 }
 
+
 function updateTotalCount() {
   let total = 0;
   SOURCES.forEach(src => {
+    if (src.group === 'voices') return; // voices counted separately
+    if (!isVisible(src.id)) return;
     const data = store[src.id];
     if (data?.state === 'done') total += data.items.filter(item => passesFilter(item, src)).length;
   });
@@ -2310,6 +2392,7 @@ function toggleAllSources() {
 let panelMode = 'manage';
 
 const GROUP_LABELS = {
+  voices:       '✦ Voices',
   geopolitical: 'Geopolitical',
   energy:       'Energy & Industry',
   usnews:       'US News & Politics',
@@ -2318,9 +2401,9 @@ const GROUP_LABELS = {
   local:        'Local',
   other:        'Other',
 };
-const GROUP_ORDER = ['geopolitical','energy','usnews','markets','alternative','local','other'];
+const GROUP_ORDER = ['voices','geopolitical','energy','usnews','markets','alternative','local','other'];
 const GROUP_SHORT  = {
-  geopolitical: 'Geo', energy: 'Energy', usnews: 'US News',
+  voices: 'Voices', geopolitical: 'Geo', energy: 'Energy', usnews: 'US News',
   markets: 'Markets', alternative: 'Alt', local: 'Local', other: 'Other',
 };
 
@@ -2616,16 +2699,51 @@ function initTrending() {
   if (count > 0) updateTrendingNewDot(count);
 }
 
+// ── Voices section toggle ──
+const VOICES_KEY = 'upstream_voices_collapsed';
+
+function toggleVoicesSection() {
+  const body    = document.getElementById('voices-body');
+  const btn     = document.getElementById('voices-collapse-btn');
+  const section = document.getElementById('voices-section');
+  if (!body) return;
+  const isCollapsed = body.style.display === 'none';
+  body.style.display = isCollapsed ? '' : 'none';
+  btn.textContent = isCollapsed ? '▲ collapse' : '▼ expand';
+  try { localStorage.setItem(VOICES_KEY, isCollapsed ? '0' : '1'); } catch(e) {}
+}
+
+function initVoices() {
+  // Default expanded — collapse only if user previously collapsed
+  try {
+    const collapsed = localStorage.getItem(VOICES_KEY) === '1';
+    if (collapsed) {
+      const body = document.getElementById('voices-body');
+      const btn  = document.getElementById('voices-collapse-btn');
+      if (body) body.style.display = 'none';
+      if (btn)  btn.textContent = '▼ expand';
+    }
+  } catch(e) {}
+
+  // Update sub-label with voice count
+  const voicesSources = SOURCES.filter(s => s.group === 'voices' && isVisible(s.id));
+  const sub = document.getElementById('voices-sub');
+  if (sub) sub.textContent = voicesSources.length + ' commentators';
+}
+
 function setLayout(mode) {
   const grid = document.getElementById('grid');
+  const voicesGrid = document.getElementById('voices-grid');
   const compactBtn = document.getElementById('lt-compact');
   const comfyBtn = document.getElementById('lt-comfortable');
   if (mode === 'comfortable') {
     grid.classList.add('comfortable');
+    if (voicesGrid) voicesGrid.classList.add('comfortable');
     compactBtn.classList.remove('active');
     comfyBtn.classList.add('active');
   } else {
     grid.classList.remove('comfortable');
+    if (voicesGrid) voicesGrid.classList.remove('comfortable');
     compactBtn.classList.add('active');
     comfyBtn.classList.remove('active');
   }
@@ -2752,7 +2870,10 @@ function buildGrid() {
   const vis = loadVisibility();
   const order = loadOrder();
   const allOrdered = order.map(id => SOURCES.find(s => s.id === id)).filter(Boolean);
-  grid.innerHTML = allOrdered.map(src => `
+
+  // News sources grid — excludes voices group
+  const newsSources = allOrdered.filter(src => src.group !== 'voices');
+  grid.innerHTML = newsSources.map(src => `
     <div class="card" id="card-${src.id}" draggable="true" data-id="${src.id}">
       <div class="card-header">
         <div class="drag-handle"><span></span><span></span><span></span></div>
@@ -2767,7 +2888,28 @@ function buildGrid() {
       </div>
     </div>
   `).join('');
-  // Render bias badges and apply saved visibility
+
+  // Voices grid — separate section, not affected by news filters
+  const voicesGrid = document.getElementById('voices-grid');
+  if (voicesGrid) {
+    const voicesSources = allOrdered.filter(src => src.group === 'voices');
+    voicesGrid.innerHTML = voicesSources.map(src => `
+      <div class="card" id="card-${src.id}" data-id="${src.id}">
+        <div class="card-header">
+          <div class="source-bar" style="background:${src.color}"></div>
+          <span class="card-title">${src.name}</span>
+          <span class="bias-wrap"></span>
+          <span class="card-count" id="count-${src.id}"></span>
+          <a class="visit-link" href="${src.site}" target="_blank" rel="noopener">Visit ↗</a>
+        </div>
+        <div class="articles-wrap">
+          <div class="state-msg">Loading…</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Render bias badges and apply saved visibility for all sources
   allOrdered.forEach(src => {
     const wrap = document.querySelector(`#card-${src.id} .bias-wrap`);
     if (wrap) renderBadge(src, wrap, getBiasLabel(src));
@@ -3387,6 +3529,7 @@ function renderClusters() {
 loadAll();
 initLayout();
 initTrending();
+initVoices();
 // ── Bible Verse of the Day (labs.bible.org, NET translation) ──
 const VERSE_KEY = 'upstream_verse';
 
