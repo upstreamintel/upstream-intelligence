@@ -1953,7 +1953,21 @@ async function fetchFeed(src) {
           const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
           return db - da;
         });
-        store[src.id] = { state: 'done', items };
+        // GovTrack: deduplicate by bill number — keep only most recent event per bill.
+        // The feed publishes a new entry for each legislative stage (introduced,
+        // committee, floor vote, etc.) so the same bill can appear 6+ times.
+        const dedupedItems = src.id === 'govtrack' ? (() => {
+          const seen = new Map();
+          for (const item of items) {
+            // Extract bill identifier from title e.g. "H.R. 1422: ..." → "H.R. 1422"
+            const m = item.title.match(/^(H\.R\.|S\.|H\.Res\.|S\.Res\.|H\.Con\.Res\.|S\.Con\.Res\.|H\.J\.Res\.|S\.J\.Res\.)\s*(\d+)/i);
+            const key = m ? (m[1] + m[2]).toLowerCase().replace(/\s/g,'') : item.link;
+            if (!seen.has(key)) seen.set(key, item); // items already sorted newest-first
+          }
+          return [...seen.values()];
+        })() : items;
+
+        store[src.id] = { state: 'done', items: dedupedItems };
         renderCard(src);
         updateTotalCount(); updatePillCounts();
         updateSourceBtn();
