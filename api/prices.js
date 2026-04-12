@@ -13,9 +13,8 @@
  *   Brent:   BZ=F (Brent Crude front-month futures)
  *   Nat Gas: NG=F (Henry Hub Natural Gas front-month futures)
  *
- * Change is computed from the last two closes in the OHLC array to avoid
- * chartPreviousClose contract-roll issues. Falls back to chartPreviousClose
- * if the OHLC array doesn't have enough valid entries (e.g. NG=F roll periods).
+ * Change uses regularMarketPreviousClose — Yahoo's own intraday reference price.
+ * Prior OHLC array approach caused cross-contract artifacts during futures roll periods.
  */
 export const config = { runtime: 'edge' };
 
@@ -28,30 +27,14 @@ async function fetchYahoo(symbol) {
   const j = await res.json();
   const result = j?.chart?.result?.[0];
   if (!result) throw new Error(`Yahoo: no result for ${symbol}`);
+  const meta  = result.meta;
+  const price = meta.regularMarketPrice;
 
-  const meta   = result.meta;
-  const closes = result.indicators?.quote?.[0]?.close;
-  const price  = meta.regularMarketPrice;
-
-  let change = 0, pct = 0;
-
-  // Try OHLC array first (avoids contract-roll artifacts in chartPreviousClose)
-  if (closes && closes.length >= 2) {
-    const valid = closes.filter(v => v != null);
-    if (valid.length >= 2) {
-      const prev = valid[valid.length - 2];
-      const curr = valid[valid.length - 1];
-      change = parseFloat((curr - prev).toFixed(2));
-      pct    = parseFloat(((change / prev) * 100).toFixed(2));
-    }
-  }
-
-  // Fall back to chartPreviousClose if OHLC didn't yield a usable result
-  if (change === 0 && meta.chartPreviousClose) {
-    const prev = meta.chartPreviousClose;
-    change = parseFloat((price - prev).toFixed(2));
-    pct    = parseFloat(((change / prev) * 100).toFixed(2));
-  }
+  // Use regularMarketPreviousClose — Yahoo's own intraday change calculation.
+  // OHLC array approach caused cross-contract artifacts during futures roll periods.
+  const prev   = meta.regularMarketPreviousClose || meta.chartPreviousClose;
+  const change = prev ? parseFloat((price - prev).toFixed(2)) : 0;
+  const pct    = prev ? parseFloat(((change / prev) * 100).toFixed(2)) : 0;
 
   return {
     price,
@@ -70,7 +53,6 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
   }
-
   try {
     const [wti, brent, natgas] = await Promise.allSettled([
       fetchYahoo('CL=F'),
