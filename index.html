@@ -342,6 +342,39 @@
   .badge-oil { background: var(--tag-oil-bg);   color: var(--tag-oil); }
 
   /* ── States ── */
+  /* ── Claude Summarizer ── */
+  .summarize-btn {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .summarize-btn:hover { background: var(--accent); color: #fff; }
+  .summarize-btn.loading { opacity: 0.5; pointer-events: none; }
+  .summarize-btn.done { border-color: var(--text-muted); color: var(--text-muted); }
+  .summary-panel {
+    display: none;
+    margin: 6px 16px 10px 24px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+  .summary-panel.visible { display: block; }
+  .summary-panel ul { margin: 0; padding-left: 16px; }
+  .summary-panel li { margin-bottom: 4px; }
+  .summary-panel .summary-error { color: #C0392B; font-style: italic; }
+
   .state-msg {
     padding: 28px 16px;
     font-size: 13px;
@@ -1463,8 +1496,8 @@ const SOURCES = [
   },
   {
     id:'pol', name:'Politico', color:'#003366', site:'https://www.politico.com',
-    url:'https://www.politico.com/rss/politicopicks.xml',
-    fallback:'https://www.politico.com/rss/politics08.xml',
+    url:'https://news.google.com/rss/search?q=site:politico.com&hl=en-US&gl=US&ceid=US:en',
+    fallback:'https://news.google.com/rss/search?q=politico+politics+congress&hl=en-US&gl=US&ceid=US:en',
     bias:'Center-Left', biasColor:'#2C6B8B',
     group:'usnews'
   },
@@ -1936,6 +1969,108 @@ async function fetchFeed(src) {
   updateSourceBtn();
 }
 
+// ── Claude Summarizer ──────────────────────────────────────────────────────
+// Fetches a URL via /api/summarize, caches result in localStorage for 7 days,
+// and renders bullets into targetEl. cacheKey should be unique per article URL.
+const SUMMARIZE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+
+async function claudeSummarize(articleUrl, promptTemplate, targetEl, btn) {
+  const cacheKey = 'sum_' + btoa(articleUrl).replace(/[^a-zA-Z0-9]/g, '').slice(0, 60);
+
+  // ── Check cache ──
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const { text, ts } = JSON.parse(cached);
+      if (Date.now() - ts < SUMMARIZE_TTL) {
+        renderSummary(targetEl, btn, text);
+        return;
+      }
+      localStorage.removeItem(cacheKey);
+    }
+  } catch(e) {}
+
+  // ── Fetch from Vercel /api/summarize ──
+  btn.textContent = '⏳ Analyzing…';
+  btn.classList.add('loading');
+
+  // For GovTrack: convert GovTrack bill link → Congress.gov CRS summary URL
+  const fetchUrl = buildSummarizeUrl(articleUrl);
+
+  try {
+    const res = await fetch(
+      `${VERCEL_BASE}/api/summarize?url=${encodeURIComponent(fetchUrl)}&prompt=${encodeURIComponent(promptTemplate)}`,
+      { signal: AbortSignal.timeout(30000) }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Cache it
+    try { localStorage.setItem(cacheKey, JSON.stringify({ text: data.summary, ts: Date.now() })); } catch(e) {}
+
+    renderSummary(targetEl, btn, data.summary);
+  } catch(err) {
+    targetEl.innerHTML = `<span class="summary-error">Could not load summary: ${err.message}</span>`;
+    targetEl.classList.add('visible');
+    btn.textContent = '⚡ O&G Impact';
+    btn.classList.remove('loading');
+  }
+}
+
+// Convert a GovTrack bill URL to the Congress.gov CRS summary page.
+// GovTrack links look like: https://www.govtrack.us/congress/bills/119/hr1422
+// Congress.gov CRS URL:     https://www.congress.gov/bill/119th-congress/house-bill/1422
+// For RRC or other URLs, pass through unchanged.
+function buildSummarizeUrl(url) {
+  try {
+    const m = url.match(/govtrack\.us\/congress\/bills\/(\d+)\/(hr|s|hres|sres|hconres|sconres|hjres|sjres)(\d+)/i);
+    if (!m) return url;
+    const congress = m[1];
+    const typeRaw = m[2].toLowerCase();
+    const num = m[3];
+    const typeMap = {
+      hr: 'house-bill', s: 'senate-bill',
+      hres: 'house-resolution', sres: 'senate-resolution',
+      hconres: 'house-concurrent-resolution', sconres: 'senate-concurrent-resolution',
+      hjres: 'house-joint-resolution', sjres: 'senate-joint-resolution',
+    };
+    const billType = typeMap[typeRaw] || 'house-bill';
+    // Ordinal suffix for congress number
+    const suffix = congress.endsWith('1') && congress !== '11' ? 'st'
+                 : congress.endsWith('2') && congress !== '12' ? 'nd'
+                 : congress.endsWith('3') && congress !== '13' ? 'rd' : 'th';
+    return `https://www.congress.gov/bill/${congress}${suffix}-congress/${billType}/${num}`;
+  } catch(e) { return url; }
+}
+
+function renderSummary(targetEl, btn, text) {
+  // Convert markdown-style bullets to <ul><li> if present, else wrap in <p>
+  let html = '';
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const bulletLines = lines.filter(l => /^[-•*]/.test(l));
+  if (bulletLines.length >= 2) {
+    const items = bulletLines.map(l => `<li>${l.replace(/^[-•*]\s*/, '')}</li>`).join('');
+    html = `<ul>${items}</ul>`;
+  } else {
+    html = lines.map(l => `<p style="margin:0 0 4px">${l}</p>`).join('');
+  }
+  targetEl.innerHTML = html;
+
+  // Toggle visibility
+  const isVisible = targetEl.classList.contains('visible');
+  targetEl.classList.toggle('visible', !isVisible);
+  btn.textContent = isVisible ? '⚡ O&G Impact' : '▲ Hide';
+  btn.classList.remove('loading');
+  btn.classList.toggle('done', !isVisible);
+}
+
+// Prompts used per source
+const SUMMARIZE_PROMPTS = {
+  govtrack: 'What does this bill do that specifically affects oil and gas production, leasing, drilling, pipeline, pricing, or energy policy? Summarize in 3 bullets for an upstream O&G professional. If the bill has no relevance to oil and gas, say so in one sentence.',
+  rrc: 'Summarize this Railroad Commission of Texas press release and explain its significance for Eagle Ford and Permian Basin operators in 3 bullets.',
+};
+
 function buildArticleHTML(item, src) {
   const tg = tagItem(item.title, item.desc);
   const tagged = tg.fp || tg.mkt || tg.en || tg.dom || tg.mil || tg.oil || tg.sports || tg.sci;
@@ -1970,6 +2105,16 @@ function buildArticleHTML(item, src) {
     </div>`;
   }
 
+  // O&G Impact button for GovTrack and RRC
+  const showSummarize = src.id === 'govtrack' || src.id === 'rrc';
+  const sumId = showSummarize ? 'sum-' + btoa(safeLink).replace(/[^a-zA-Z0-9]/g,'').slice(0,40) : '';
+  const summarizeBtn = showSummarize
+    ? `<button class="summarize-btn" onclick="event.preventDefault();event.stopPropagation();
+        const p=document.getElementById('${sumId}');
+        const b=this;
+        claudeSummarize('${safeLink}', SUMMARIZE_PROMPTS['${src.id}'], p, b);">⚡ O&amp;G Impact</button>`
+    : '';
+
   return `<a class="article" href="${safeLink}" target="_blank" rel="noopener">
     ${dot}
     <div class="article-body">
@@ -1977,9 +2122,10 @@ function buildArticleHTML(item, src) {
       <div class="article-meta">
         ${timeHTML}
         ${badges}
+        ${summarizeBtn}
       </div>
     </div>
-  </a>`;
+  </a>${showSummarize ? `<div class="summary-panel" id="${sumId}"></div>` : ''}`;
 }
 
 function renderCard(src) {
