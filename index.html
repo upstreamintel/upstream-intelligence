@@ -2419,6 +2419,7 @@ function toggleSource(id) {
   }
   renderPanelList();
   updateSourceBtn();
+  updateVoicesCount();
   // Keep panel open
   const panel = document.getElementById('sources-panel');
   const btn = document.getElementById('manage-btn');
@@ -2545,6 +2546,7 @@ function toggleGroup(group) {
   }
   renderPanelList();
   updateSourceBtn();
+  updateVoicesCount();
   document.getElementById('sources-panel').classList.add('visible');
   document.getElementById('manage-btn').classList.add('open');
 }
@@ -2822,6 +2824,14 @@ function toggleVoicesSection() {
   try { localStorage.setItem(VOICES_KEY, isCollapsed ? '0' : '1'); } catch(e) {}
 }
 
+function updateVoicesCount() {
+  const count = SOURCES.filter(s => s.group === 'voices' && isVisible(s.id)).length;
+  const sub = document.getElementById('voices-sub');
+  if (sub) sub.textContent = count + ' commentators';
+  const badge = document.getElementById('voices-collapsed-badge');
+  if (badge) badge.textContent = count + ' commentators';
+}
+
 function initVoices() {
   // Default expanded — collapse only if user previously collapsed
   try {
@@ -2836,13 +2846,7 @@ function initVoices() {
     }
   } catch(e) {}
 
-  // Update sub-label and collapsed badge with voice count
-  const voicesSources = SOURCES.filter(s => s.group === 'voices' && isVisible(s.id));
-  const count = voicesSources.length;
-  const sub = document.getElementById('voices-sub');
-  if (sub) sub.textContent = count + ' commentators';
-  const badge = document.getElementById('voices-collapsed-badge');
-  if (badge) badge.textContent = count + ' commentators';
+  updateVoicesCount();
 }
 
 function setLayout(mode) {
