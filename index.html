@@ -2831,6 +2831,9 @@ function updateVoicesCount() {
   if (sub) sub.textContent = count + ' commentators';
   const badge = document.getElementById('voices-collapsed-badge');
   if (badge) badge.textContent = count + ' commentators';
+  // Hide entire voices section when no voices are visible
+  const section = document.getElementById('voices-section');
+  if (section) section.style.display = count === 0 ? 'none' : '';
 }
 
 function initVoices() {
