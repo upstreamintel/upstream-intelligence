@@ -2825,7 +2825,8 @@ function toggleVoicesSection() {
 }
 
 function updateVoicesCount() {
-  const count = SOURCES.filter(s => s.group === 'voices' && isVisible(s.id)).length;
+  const vis = loadVisibility();
+  const count = SOURCES.filter(s => s.group === 'voices' && vis[s.id] !== false).length;
   const sub = document.getElementById('voices-sub');
   if (sub) sub.textContent = count + ' commentators';
   const badge = document.getElementById('voices-collapsed-badge');
