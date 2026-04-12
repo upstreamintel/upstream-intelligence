@@ -1641,8 +1641,8 @@ const SOURCES = [
     group:'voices'
   },
   {
-    id:'sac', name:'Jeffrey Sachs', shortName:'J. Sachs', color:'#5C3D8B', site:'https://www.jeffsachs.org/interviewsandmedia',
-    url:'https://www.jeffsachs.org/interviewsandmedia?format=rss',
+    id:'sac', name:'Jeffrey Sachs', shortName:'J. Sachs', color:'#5C3D8B', site:'https://www.jeffsachs.org',
+    url:'https://news.google.com/rss/search?q=%22Jeffrey+Sachs%22&hl=en-US&gl=US&ceid=US:en',
     fallback:'https://jeffdsachs.substack.com/feed',
     bias:'Progressive / Realist', biasColor:'#2C6B8B',
     group:'voices'
@@ -2491,21 +2491,30 @@ function renderPanelList() {
   const allOrdered = order.map(id => SOURCES.find(s => s.id === id)).filter(Boolean);
 
   if (panelMode === 'reorder') {
-    let html = '';
-    allOrdered.forEach((src, idx) => {
+    const voiceSrcs = allOrdered.filter(s => s.group === 'voices');
+    const newsSrcs  = allOrdered.filter(s => s.group !== 'voices');
+
+    const makeRow = (src, idx, arr, mover) => {
       const isFirst = idx === 0;
-      const isLast  = idx === allOrdered.length - 1;
+      const isLast  = idx === arr.length - 1;
       const tag = GROUP_SHORT[src.group || 'other'] || 'Other';
-      html += `<div class="source-row" onclick="event.stopPropagation()">
+      return `<div class="source-row" onclick="event.stopPropagation()">
         <div class="src-order-btns">
-          <button class="src-order-btn" ${isFirst ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceGlobal('${src.id}',-1)" title="Move up">▲</button>
-          <button class="src-order-btn" ${isLast  ? 'disabled' : ''} onclick="event.stopPropagation();moveSourceGlobal('${src.id}',1)"  title="Move down">▼</button>
+          <button class="src-order-btn" ${isFirst ? 'disabled' : ''} onclick="event.stopPropagation();${mover}('${src.id}',-1)" title="Move up">▲</button>
+          <button class="src-order-btn" ${isLast  ? 'disabled' : ''} onclick="event.stopPropagation();${mover}('${src.id}',1)"  title="Move down">▼</button>
         </div>
         <div class="source-row-dot" style="background:${src.color}"></div>
         <span class="source-row-name">${src.name}</span>
         <span class="src-group-tag">${tag}</span>
       </div>`;
-    });
+    };
+
+    let html = '';
+    html += `<div class="reorder-section-label">✦ Voices</div>`;
+    voiceSrcs.forEach((src, idx) => { html += makeRow(src, idx, voiceSrcs, 'moveVoice'); });
+    html += `<div class="reorder-divider"></div>`;
+    html += `<div class="reorder-section-label">News Sources</div>`;
+    newsSrcs.forEach((src, idx) => { html += makeRow(src, idx, newsSrcs, 'moveNewsSource'); });
     html += `<div class="panel-reorder-hint">Changes apply instantly to the grid</div>`;
     list.innerHTML = html;
     return;
@@ -2545,25 +2554,59 @@ function renderPanelList() {
   list.innerHTML = html;
 }
 
-function moveSourceGlobal(id, direction) {
+function moveVoice(id, direction) {
   const order = loadOrder();
-  const idx = order.indexOf(id);
+  const voiceIds = order.filter(sid => SOURCES.find(x => x.id === sid)?.group === 'voices');
+  const newsIds  = order.filter(sid => SOURCES.find(x => x.id === sid)?.group !== 'voices');
+  const idx = voiceIds.indexOf(id);
   const newIdx = idx + direction;
-  if (newIdx < 0 || newIdx >= order.length) return;
-  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
-  saveOrder(order);
-  const grid = document.getElementById('grid');
-  const cards = order.map(i => document.getElementById('card-' + i)).filter(Boolean);
-  cards.forEach(card => grid.appendChild(card));
+  if (newIdx < 0 || newIdx >= voiceIds.length) return;
+  [voiceIds[idx], voiceIds[newIdx]] = [voiceIds[newIdx], voiceIds[idx]];
+  const newOrder = [...voiceIds, ...newsIds];
+  saveOrder(newOrder);
+  _applyGridOrder(newOrder);
   renderPanelList();
   document.getElementById('sources-panel').classList.add('visible');
   document.getElementById('manage-btn').classList.add('open');
 }
 
+function moveNewsSource(id, direction) {
+  const order = loadOrder();
+  const voiceIds = order.filter(sid => SOURCES.find(x => x.id === sid)?.group === 'voices');
+  const newsIds  = order.filter(sid => SOURCES.find(x => x.id === sid)?.group !== 'voices');
+  const idx = newsIds.indexOf(id);
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= newsIds.length) return;
+  [newsIds[idx], newsIds[newIdx]] = [newsIds[newIdx], newsIds[idx]];
+  const newOrder = [...voiceIds, ...newsIds];
+  saveOrder(newOrder);
+  _applyGridOrder(newOrder);
+  renderPanelList();
+  document.getElementById('sources-panel').classList.add('visible');
+  document.getElementById('manage-btn').classList.add('open');
+}
+
+function _applyGridOrder(order) {
+  const grid = document.getElementById('grid');
+  const voicesGrid = document.getElementById('voices-grid');
+  order.forEach(sid => {
+    const card = document.getElementById('card-' + sid);
+    if (!card) return;
+    const src = SOURCES.find(s => s.id === sid);
+    if (src?.group === 'voices') {
+      if (voicesGrid) voicesGrid.appendChild(card);
+    } else {
+      grid.appendChild(card);
+    }
+  });
+}
+
 function updateSourceBtn() {
-  const visible = SOURCES.filter(s => isVisible(s.id)).length;
-  const total = SOURCES.length;
-  const errored = SOURCES.filter(s => isVisible(s.id) && store[s.id]?.state === 'error').length;
+  // Exclude voices group from Sources button count — they are a separate section
+  const newsSources = SOURCES.filter(s => s.group !== 'voices');
+  const visible = newsSources.filter(s => isVisible(s.id)).length;
+  const total = newsSources.length;
+  const errored = newsSources.filter(s => isVisible(s.id) && store[s.id]?.state === 'error').length;
   const btn = document.getElementById('manage-btn');
   if (visible === 0) {
     btn.textContent = `⚙ Sources (0/${total})`;
@@ -2894,8 +2937,9 @@ function buildGrid() {
   if (voicesGrid) {
     const voicesSources = allOrdered.filter(src => src.group === 'voices');
     voicesGrid.innerHTML = voicesSources.map(src => `
-      <div class="card" id="card-${src.id}" data-id="${src.id}">
+      <div class="card" id="card-${src.id}" draggable="true" data-id="${src.id}">
         <div class="card-header">
+          <div class="drag-handle"><span></span><span></span><span></span></div>
           <div class="source-bar" style="background:${src.color}"></div>
           <span class="card-title">${src.name}</span>
           <span class="bias-wrap"></span>
@@ -2920,18 +2964,26 @@ function buildGrid() {
 }
 
 function initDrag() {
-  const grid = document.getElementById('grid');
+  // Wire drag independently per grid so voices and news cards never interfere
+  initGridDrag(document.getElementById('voices-grid'));
+  initGridDrag(document.getElementById('grid'));
+}
+
+function initGridDrag(grid) {
+  if (!grid) return;
   let dragSrcId = null;
 
-  grid.querySelectorAll('.card').forEach(card => {
+  const attachListeners = (card) => {
     card.addEventListener('dragstart', e => {
       dragSrcId = card.dataset.id;
       card.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('gridId', grid.id);
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
       grid.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+      dragSrcId = null;
     });
     card.addEventListener('dragover', e => {
       e.preventDefault();
@@ -2943,22 +2995,25 @@ function initDrag() {
     card.addEventListener('drop', e => {
       e.preventDefault();
       card.classList.remove('drag-over');
+      if (e.dataTransfer.getData('gridId') !== grid.id) return;
       if (!dragSrcId || dragSrcId === card.dataset.id) return;
 
-      // Reorder in DOM
       const cards = [...grid.querySelectorAll('.card')];
-      const srcEl = grid.querySelector(`[data-id="${dragSrcId}"]`);
+      const srcEl = grid.querySelector('[data-id="' + dragSrcId + '"]');
       const tgtEl = card;
       const srcIdx = cards.indexOf(srcEl);
       const tgtIdx = cards.indexOf(tgtEl);
       if (srcIdx < tgtIdx) grid.insertBefore(srcEl, tgtEl.nextSibling);
       else grid.insertBefore(srcEl, tgtEl);
 
-      // Persist new order
-      const newOrder = [...grid.querySelectorAll('.card')].map(c => c.dataset.id);
-      saveOrder(newOrder);
+      // Persist voices + news combined order
+      const voicesOrder = [...document.getElementById('voices-grid').querySelectorAll('.card')].map(c => c.dataset.id);
+      const newsOrder   = [...document.getElementById('grid').querySelectorAll('.card')].map(c => c.dataset.id);
+      saveOrder([...voicesOrder, ...newsOrder]);
     });
-  });
+  };
+
+  grid.querySelectorAll('.card').forEach(attachListeners);
 }
 
 function setDateDisplay() {
