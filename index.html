@@ -1974,6 +1974,8 @@ async function fetchFeed(src) {
 // and renders bullets into targetEl. cacheKey should be unique per article URL.
 const SUMMARIZE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 
+let _sumCounter = 0; // Unique counter for summary panel IDs — reset on each renderCard call
+
 async function claudeSummarize(articleUrl, promptTemplate, targetEl, btn) {
   const cacheKey = 'sum_' + btoa(articleUrl).replace(/[^a-zA-Z0-9]/g, '').slice(0, 60);
 
@@ -2087,7 +2089,7 @@ function buildArticleHTML(item, src) {
 
   // O&G Impact button for GovTrack and RRC
   const showSummarize = src.id === 'govtrack' || src.id === 'rrc';
-  const sumId = showSummarize ? 'sum-' + btoa(safeLink).replace(/[^a-zA-Z0-9]/g,'').slice(0,40) : '';
+  const sumId = showSummarize ? 'sum-' + (++_sumCounter) : '';
   const summarizeBtn = showSummarize
     ? `<button class="summarize-btn" onclick="event.preventDefault();event.stopPropagation();
         const p=document.getElementById('${sumId}');
