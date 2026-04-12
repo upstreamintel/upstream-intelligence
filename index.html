@@ -2510,7 +2510,7 @@ function renderPanelList() {
     };
 
     let html = '';
-    html += `<div class="reorder-section-label">✦ Voices</div>`;
+    html += `<div class="reorder-section-label">Voices</div>`;
     voiceSrcs.forEach((src, idx) => { html += makeRow(src, idx, voiceSrcs, 'moveVoice'); });
     html += `<div class="reorder-divider"></div>`;
     html += `<div class="reorder-section-label">News Sources</div>`;
@@ -2602,11 +2602,10 @@ function _applyGridOrder(order) {
 }
 
 function updateSourceBtn() {
-  // Exclude voices group from Sources button count — they are a separate section
-  const newsSources = SOURCES.filter(s => s.group !== 'voices');
-  const visible = newsSources.filter(s => isVisible(s.id)).length;
-  const total = newsSources.length;
-  const errored = newsSources.filter(s => isVisible(s.id) && store[s.id]?.state === 'error').length;
+  // Count all sources including voices
+  const visible = SOURCES.filter(s => isVisible(s.id)).length;
+  const total = SOURCES.length;
+  const errored = SOURCES.filter(s => isVisible(s.id) && store[s.id]?.state === 'error').length;
   const btn = document.getElementById('manage-btn');
   if (visible === 0) {
     btn.textContent = `⚙ Sources (0/${total})`;
