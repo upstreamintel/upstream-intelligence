@@ -2097,7 +2097,9 @@ function setFilter(f) {
 
 function updatePillCounts() {
   const counts = { all: 0, fp: 0, markets: 0, energy: 0, domestic: 0, military: 0, oil: 0 };
+  const vis = loadVisibility(); // cache once — avoid re-reading localStorage per article
   SOURCES.forEach(src => {
+    if (vis[src.id] === false) return; // skip toggled-off sources
     const data = store[src.id];
     if (data?.state !== 'done') return;
     data.items.forEach(item => {
@@ -2465,6 +2467,8 @@ function toggleSource(id) {
   renderPanelList();
   updateSourceBtn();
   updateVoicesCount();
+  updateTotalCount();
+  updatePillCounts();
   // Keep panel open
   const panel = document.getElementById('sources-panel');
   const btn = document.getElementById('manage-btn');
