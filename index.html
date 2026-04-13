@@ -3092,6 +3092,8 @@ function buildGrid() {
     const card = document.getElementById('card-' + src.id);
     if (card && vis[src.id] === false) card.style.display = 'none';
   });
+  // Ensure voices section visibility reflects current toggle state
+  updateVoicesCount();
   initDrag();
 }
 
