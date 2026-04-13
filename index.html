@@ -2501,6 +2501,8 @@ function toggleAllSources() {
     showEmptyState();
     renderPanelList();
     updateSourceBtn();
+    updateTotalCount();
+    updatePillCounts();
   }
 }
 
@@ -2596,6 +2598,8 @@ function toggleGroup(group) {
   renderPanelList();
   updateSourceBtn();
   updateVoicesCount();
+  updateTotalCount();
+  updatePillCounts();
   document.getElementById('sources-panel').classList.add('visible');
   document.getElementById('manage-btn').classList.add('open');
 }
