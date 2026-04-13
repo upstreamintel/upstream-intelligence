@@ -1693,6 +1693,7 @@ const SOURCES = [
     id:'jturley', name:'Jonathan Turley', shortName:'Turley', color:'#2C4A7C', site:'https://jonathanturley.org',
     url:'https://jonathanturley.org/feed/',
     fallback: null,
+    requiresProxy: true,
     bias:'Center / Constitutional', biasColor:'#A0621A',
     group:'voices'
   },
@@ -1701,6 +1702,7 @@ const SOURCES = [
     id:'sritter', name:'Scott Ritter', shortName:'S. Ritter', color:'#5C2C2C', site:'https://scottritter.substack.com',
     url:'https://scottritter.substack.com/feed',
     fallback: null,
+    requiresProxy: true,
     bias:'Anti-Interventionist', biasColor:'#4A4A4A',
     group:'voices'
   },
@@ -1709,7 +1711,26 @@ const SOURCES = [
     id:'ggreenwald', name:'Glenn Greenwald', shortName:'Greenwald', color:'#1A5C3A', site:'https://greenwald.substack.com',
     url:'https://greenwald.substack.com/feed',
     fallback: null,
+    requiresProxy: true,
     bias:'Independent / Civil Liberties', biasColor:'#2C6B8B',
+    group:'voices'
+  },
+  {
+    // id stable — do not change
+    id:'randpaul', name:'Rand Paul', shortName:'R. Paul', color:'#8B2500', site:'https://www.paul.senate.gov',
+    url:'https://news.google.com/rss/search?q=%22Rand+Paul%22&hl=en-US&gl=US&ceid=US:en',
+    fallback: null,
+    requiresProxy: true,
+    bias:'Libertarian / Conservative', biasColor:'#8B2500',
+    group:'voices'
+  },
+  {
+    // id stable — do not change
+    id:'tmassie', name:'Thomas Massie', shortName:'Massie', color:'#4A2C6B', site:'https://massie.house.gov',
+    url:'https://news.google.com/rss/search?q=%22Thomas+Massie%22&hl=en-US&gl=US&ceid=US:en',
+    fallback: null,
+    requiresProxy: true,
+    bias:'Libertarian / Conservative', biasColor:'#8B2500',
     group:'voices'
   },
 
