@@ -15,6 +15,9 @@
  *
  * Change uses regularMarketPreviousClose — Yahoo's own intraday reference price.
  * Prior OHLC array approach caused cross-contract artifacts during futures roll periods.
+ *
+ * Cache: s-maxage=60 (1-min edge cache) — tightened from 900 to prevent stale
+ * change values caused by Vercel serving cached snapshots during active market hours.
  */
 export const config = { runtime: 'edge' };
 
@@ -27,15 +30,11 @@ async function fetchYahoo(symbol) {
   const j = await res.json();
   const result = j?.chart?.result?.[0];
   if (!result) throw new Error(`Yahoo: no result for ${symbol}`);
-  const meta  = result.meta;
-  const price = meta.regularMarketPrice;
-
-  // Use regularMarketPreviousClose — Yahoo's own intraday change calculation.
-  // OHLC array approach caused cross-contract artifacts during futures roll periods.
+  const meta   = result.meta;
+  const price  = meta.regularMarketPrice;
   const prev   = meta.regularMarketPreviousClose || meta.chartPreviousClose;
   const change = prev ? parseFloat((price - prev).toFixed(2)) : 0;
   const pct    = prev ? parseFloat(((change / prev) * 100).toFixed(2)) : 0;
-
   return {
     price,
     change,
@@ -69,7 +68,7 @@ export default async function handler(req) {
       headers: {
         ...CORS,
         'Content-Type': 'application/json',
-        'Cache-Control': 's-maxage=900, stale-while-revalidate=300',
+        'Cache-Control': 's-maxage=60, stale-while-revalidate=120',
       },
     });
   } catch (err) {
