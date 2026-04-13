@@ -12,11 +12,11 @@
  *   WTI:     CL=F   Brent: BZ=F   Nat Gas: NG=F
  *
  * Previous close strategy:
- *   1. chartPreviousClose  — most reliable for active futures
- *   2. OHLC array penultimate close — fallback if (1) is missing
- *   3. regularMarketPreviousClose — last resort (can be stale during roll)
- *
- * Cache: 60s edge cache to prevent stale change values during market hours.
+ *   Use the penultimate valid close from the OHLC array (range=5d, interval=1d).
+ *   This is the last completed session's closing price for the current contract,
+ *   which is what Yahoo Finance itself uses for the intraday change display.
+ *   Meta fields (chartPreviousClose, regularMarketPreviousClose) can reference
+ *   prior contracts during futures roll periods and produce inflated deltas.
  */
 export const config = { runtime: 'edge' };
 
@@ -33,32 +33,26 @@ async function fetchYahoo(symbol) {
   const meta  = result.meta;
   const price = meta.regularMarketPrice;
 
-  // Strategy: chartPreviousClose is Yahoo's own prior-session reference for
-  // the current contract. Prefer it over regularMarketPreviousClose which can
-  // reference a prior contract during roll periods.
-  // Fall back to penultimate OHLC close if chartPreviousClose is absent.
-  let prev = meta.chartPreviousClose;
-
-  if (!prev) {
-    const closes = result?.indicators?.quote?.[0]?.close;
-    if (closes && closes.length >= 2) {
-      // Walk back from end to find last two valid (non-null) closes
-      const valid = closes.filter(v => v != null);
-      if (valid.length >= 2) prev = valid[valid.length - 2];
+  // Use penultimate close from OHLC array — most accurate for current contract.
+  // Filter out nulls (partial/missing sessions), take second-to-last valid close.
+  let prev = null;
+  const closes = result?.indicators?.quote?.[0]?.close;
+  if (closes && closes.length >= 2) {
+    const valid = closes.filter(v => v != null);
+    if (valid.length >= 2) {
+      prev = valid[valid.length - 2];
+    } else if (valid.length === 1) {
+      prev = valid[0];
     }
   }
 
-  if (!prev) prev = meta.regularMarketPreviousClose;
+  // Hard fallback only — these are unreliable during roll periods
+  if (!prev) prev = meta.chartPreviousClose || meta.regularMarketPreviousClose;
 
   const change = prev ? parseFloat((price - prev).toFixed(2)) : 0;
   const pct    = prev ? parseFloat(((change / prev) * 100).toFixed(2)) : 0;
 
-  return {
-    price,
-    change,
-    pct,
-    updated: new Date().toISOString(),
-  };
+  return { price, change, pct, updated: new Date().toISOString() };
 }
 
 const CORS = {
