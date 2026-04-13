@@ -3523,9 +3523,13 @@ function clusterTopic(group) {
   ];
 
   const withDate = group.filter(a => a.pubDate);
-  const mostRecent = withDate.length
-    ? [...withDate].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0]
-    : group[0];
+  const byRecent = withDate.length
+    ? [...withDate].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+    : group;
+  // Prefer a center-bias source headline for cleaner card titles;
+  // fall back to most-recent if no center source exists in the cluster.
+  const centerCandidate = byRecent.find(a => biasRank(a.bias) === 3);
+  const mostRecent = centerCandidate || byRecent[0];
 
   let title = mostRecent.title;
 
@@ -3543,14 +3547,53 @@ function clusterTopic(group) {
 }
 
 // Bias order for sorting headlines within a cluster — left to right on the spectrum
+// Scale: 0=Far Left, 1=Left, 2=Center-Left, 3=Center, 4=Center-Right, 5=Right, 6=Far Right
+// All bias strings across SOURCES and Voices must be mapped here.
+// Missing entries fall through to ?? 3 (Center) — miscategorising Voices sources.
 const BIAS_ORDER = {
-  'Far Left': 0, 'Left': 1, 'Center-Left': 2, 'Center': 3, 'Aggregator': 3,
-  'Center-Right': 4, 'Right': 5, 'Far Right': 6,
-  'Libertarian': 4, 'Anti-Interventionist': 3,
-  'Pro-Kremlin': 6, 'Pro-Iran State': 6,
-  'Industry / Trade': 3, 'Center / Industry': 3,
-  'Industry / Data': 3, 'Government / Data': 3,
-  'Local News': 3, 'Sports': 3,
+  // Left
+  'Far Left': 0,
+  'Left': 1,
+  'Left / Investigative': 1,
+  'Pro-Palestinian': 1,
+  'Independent / Pro-Palestinian': 1,
+  // Center-Left
+  'Center-Left': 2,
+  'Center-Left / India': 2,
+  'Progressive / Realist': 2,            // Jeffrey Sachs
+  // Center
+  'Center': 3,
+  'Aggregator': 3,
+  'Center / South Asia': 3,
+  'Center / Constitutional': 3,          // Jonathan Turley
+  'Center / Industry': 3,
+  'Industry / Trade': 3,
+  'Industry / Data': 3,
+  'Government / Data': 3,
+  'Government / Regulator': 3,
+  'Government / Legislative': 3,
+  'Nonprofit / Nonpartisan': 3,
+  'Local News': 3,
+  'Shale Local – Permian': 3,
+  'Shale Local – Uinta': 3,
+  'Sports': 3,
+  'Independent': 3,                      // Gerald Celente
+  // Center-Right / Right-leaning
+  'Center-Right / Israel': 4,
+  'Center-Right': 4,
+  'Independent / Civil Liberties': 4,    // Glenn Greenwald
+  'Anti-Interventionist': 4,             // Scott Horton, Antiwar.com
+  'Libertarian / Anti-Interventionist': 4, // Ron Paul Liberty Report
+  'Libertarian': 4,                      // Ron Paul Institute, Sonar21
+  // Right
+  'Independent / Right': 5,             // Tucker Carlson
+  'Libertarian / Conservative': 5,      // Rand Paul, Thomas Massie
+  'Right': 5,
+  // Far Right / State Media
+  'Far Right': 6,
+  'Pro-Kremlin': 6,                     // RT News
+  'Pro-Iran State': 6,                  // PressTV
+  'Chinese State Media': 6,             // CGTN
 };
 
 function biasRank(bias) {
