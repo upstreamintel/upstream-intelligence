@@ -8,16 +8,15 @@
  *     natgas: { price, change, pct, updated }
  *   }
  *
- * All three use Yahoo Finance futures (no API key required):
- *   WTI:     CL=F (WTI Crude front-month futures)
- *   Brent:   BZ=F (Brent Crude front-month futures)
- *   Nat Gas: NG=F (Henry Hub Natural Gas front-month futures)
+ * Data source: Yahoo Finance futures (no API key required)
+ *   WTI:     CL=F   Brent: BZ=F   Nat Gas: NG=F
  *
- * Change uses regularMarketPreviousClose — Yahoo's own intraday reference price.
- * Prior OHLC array approach caused cross-contract artifacts during futures roll periods.
+ * Previous close strategy:
+ *   1. chartPreviousClose  — most reliable for active futures
+ *   2. OHLC array penultimate close — fallback if (1) is missing
+ *   3. regularMarketPreviousClose — last resort (can be stale during roll)
  *
- * Cache: s-maxage=60 (1-min edge cache) — tightened from 900 to prevent stale
- * change values caused by Vercel serving cached snapshots during active market hours.
+ * Cache: 60s edge cache to prevent stale change values during market hours.
  */
 export const config = { runtime: 'edge' };
 
@@ -30,11 +29,30 @@ async function fetchYahoo(symbol) {
   const j = await res.json();
   const result = j?.chart?.result?.[0];
   if (!result) throw new Error(`Yahoo: no result for ${symbol}`);
-  const meta   = result.meta;
-  const price  = meta.regularMarketPrice;
-  const prev   = meta.regularMarketPreviousClose || meta.chartPreviousClose;
+
+  const meta  = result.meta;
+  const price = meta.regularMarketPrice;
+
+  // Strategy: chartPreviousClose is Yahoo's own prior-session reference for
+  // the current contract. Prefer it over regularMarketPreviousClose which can
+  // reference a prior contract during roll periods.
+  // Fall back to penultimate OHLC close if chartPreviousClose is absent.
+  let prev = meta.chartPreviousClose;
+
+  if (!prev) {
+    const closes = result?.indicators?.quote?.[0]?.close;
+    if (closes && closes.length >= 2) {
+      // Walk back from end to find last two valid (non-null) closes
+      const valid = closes.filter(v => v != null);
+      if (valid.length >= 2) prev = valid[valid.length - 2];
+    }
+  }
+
+  if (!prev) prev = meta.regularMarketPreviousClose;
+
   const change = prev ? parseFloat((price - prev).toFixed(2)) : 0;
   const pct    = prev ? parseFloat(((change / prev) * 100).toFixed(2)) : 0;
+
   return {
     price,
     change,
