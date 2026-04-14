@@ -3548,9 +3548,14 @@ function clusterTopic(group) {
     // Consider any article within 24 hours of the newest as "same-day"
     const WINDOW_MS = 24 * 60 * 60 * 1000;
     const recentPool = byRecent.filter(a => newestMs - new Date(a.pubDate).getTime() <= WINDOW_MS);
-    // Within that recent pool, prefer a center-bias source (rank 3) for cleaner title language;
-    // if none, just take the most recent article overall.
-    chosen = recentPool.find(a => biasRank(a.bias) === 3) || byRecent[0];
+    // Within that recent pool, prefer the article whose bias is closest to center (rank 3).
+    // Ties broken by recency (recentPool is already sorted newest-first).
+    // Falls back to most recent article overall if recentPool is empty.
+    chosen = recentPool.reduce((best, a) => {
+      const aDist = Math.abs(biasRank(a.bias) - 3);
+      const bDist = Math.abs(biasRank(best.bias) - 3);
+      return aDist < bDist ? a : best;
+    }, recentPool[0]) || byRecent[0];
   } else {
     chosen = group[0];
   }
