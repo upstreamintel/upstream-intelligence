@@ -3524,29 +3524,43 @@ function buildClusters() {
   return mergedClusters.slice(0, 15);
 }
 
-// Use the most recent headline as the cluster title, with attribution stripping and trimming
+// Select cluster title: recency-first, with center-bias preference only among same-day articles
 function clusterTopic(group) {
   const STRIP_PREFIXES = [
     /^report[:\s]+/i, /^breaking[:\s]+/i, /^exclusive[:\s]+/i,
     /^watch[:\s]+/i, /^analysis[:\s]+/i, /^opinion[:\s]+/i,
     /^update[:\s]+/i, /^developing[:\s]+/i,
+    // YouTube-style titles
+    /^WATCH[:\s]+/i, /^LIVE[:\s]+/i, /^NEW[:\s]+/i,
   ];
 
   const withDate = group.filter(a => a.pubDate);
   const byRecent = withDate.length
     ? [...withDate].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     : group;
-  // Prefer a center-bias source headline for cleaner card titles;
-  // fall back to most-recent if no center source exists in the cluster.
-  const centerCandidate = byRecent.find(a => biasRank(a.bias) === 3);
-  const mostRecent = centerCandidate || byRecent[0];
 
-  let title = mostRecent.title;
+  let chosen;
+  if (byRecent.length) {
+    // Find the most recent article's timestamp
+    const newestMs = new Date(byRecent[0].pubDate).getTime();
+    // Consider any article within 24 hours of the newest as "same-day"
+    const WINDOW_MS = 24 * 60 * 60 * 1000;
+    const recentPool = byRecent.filter(a => newestMs - new Date(a.pubDate).getTime() <= WINDOW_MS);
+    // Within that recent pool, prefer a center-bias source (rank 3) for cleaner title language;
+    // if none, just take the most recent article overall.
+    chosen = recentPool.find(a => biasRank(a.bias) === 3) || byRecent[0];
+  } else {
+    chosen = group[0];
+  }
 
-  // Strip common attribution prefixes
+  let title = chosen.title;
+
+  // Strip common prefixes and YouTube cruft
   for (const prefix of STRIP_PREFIXES) {
     title = title.replace(prefix, '');
   }
+  // Strip trailing pipe/dash attributions (e.g. "Oil rises | Reuters" or "Gaza update - BBC")
+  title = title.replace(/\s*[\|–—-]\s*[^|–—-]{1,40}$/, '');
   title = title.trim();
   if (title.length > 0) title = title[0].toUpperCase() + title.slice(1);
 
