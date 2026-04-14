@@ -3523,12 +3523,12 @@ function buildClusters() {
     return latestB - latestA;
   });
 
-  // Freshness filter: require at least one article within 48 hours to qualify as trending
+  // Freshness filter: trim each cluster to articles within 48 hours, then require 3+ remain
   const FRESH_MS = 48 * 60 * 60 * 1000;
   const now = Date.now();
-  const freshClusters = mergedClusters.filter(group =>
-    group.some(a => a.pubDate && (now - new Date(a.pubDate).getTime()) <= FRESH_MS)
-  );
+  const freshClusters = mergedClusters
+    .map(group => group.filter(a => a.pubDate && (now - new Date(a.pubDate).getTime()) <= FRESH_MS))
+    .filter(group => group.length >= 3);
 
   return freshClusters.slice(0, 15);
 }
