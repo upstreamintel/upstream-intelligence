@@ -669,6 +669,8 @@
   .cluster-hl.hl-c { border-left-color: #A0621A; }
   .cluster-hl.hl-r { border-left-color: #8B1A1A; }
   .cluster-hl-src { font-size: 10px; color: var(--text-muted); margin-top: 3px; display: block; }
+  .cluster-hl.hl-title { font-weight: 500; color: var(--text-primary); background: var(--border-light); }
+  .cluster-hl.hl-title:hover { background: var(--border); }
   .cluster-chevron { display: none; }
   /* legacy refs */
   .cluster-headlines { display: none; }
@@ -3569,9 +3571,9 @@ function clusterTopic(group) {
   if (title.length > 0) title = title[0].toUpperCase() + title.slice(1);
 
   // Trim to ~70 chars at a word boundary
-  if (title.length <= 70) return title;
+  if (title.length <= 70) return { title, srcId: chosen.srcId };
   const trimmed = title.slice(0, 70);
-  return trimmed.slice(0, trimmed.lastIndexOf(' ')) + '\u2026';
+  return { title: trimmed.slice(0, trimmed.lastIndexOf(' ')) + '\u2026', srcId: chosen.srcId };
 }
 
 // Bias order for sorting headlines within a cluster — left to right on the spectrum
@@ -3695,7 +3697,7 @@ function renderClusters() {
 
   const html = clusters.map((group, idx) => {
     const cardId = 'cluster-' + idx;
-    const topic = clusterTopic(group);
+    const { title: topic, srcId: titleSrcId } = clusterTopic(group);
     const mostRecent = [...group].filter(a => a.pubDate)
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))[0] || group[0];
     const timeStr = mostRecent?.pubDate ? relTime(mostRecent.pubDate) : '';
@@ -3714,18 +3716,19 @@ function renderClusters() {
     const centerArts = biasSorted.filter(a => biasSlot(a.bias) === 'c');
     const rightArts  = biasSorted.filter(a => biasSlot(a.bias) === 'r');
 
-    const makeHL = function(a, slot) {
+    const makeHL = function(a, slot, isTitle) {
       const safeLink = a.link.replace(/"/g, '&quot;');
       const src = SOURCES.find(s => s.id === a.srcId);
       const timeLabel = a.pubDate ? relTimeShort(a.pubDate) + ' · ' : '';
       // Blocked-direct sources: disable link, show visit-site note instead
+      const titleCls = isTitle ? ' hl-title' : '';
       if (src?.noArticleLinks) {
-        return '<div class="cluster-hl hl-' + slot + '" style="cursor:default;">' +
+        return '<div class="cluster-hl hl-' + slot + titleCls + '" style="cursor:default;">' +
           a.title +
           '<span class="cluster-hl-src">' + timeLabel + a.srcName + ' · <span style="opacity:0.6;font-style:italic;">visit site to read</span></span>' +
           '</div>';
       }
-      return '<a class="cluster-hl hl-' + slot + '" href="' + safeLink + '" target="_blank" rel="noopener">' +
+      return '<a class="cluster-hl hl-' + slot + titleCls + '" href="' + safeLink + '" target="_blank" rel="noopener">' +
         a.title +
         '<span class="cluster-hl-src">' + timeLabel + a.srcName + '</span>' +
         '</a>';
@@ -3736,7 +3739,7 @@ function renderClusters() {
       const lbl = slot === 'l' ? '\u2190 Left' : slot === 'r' ? 'Right \u2192' : 'Center';
       return '<div class="cluster-bias-section">' +
         '<div class="cluster-bias-label lbl-' + slot + '">' + lbl + '</div>' +
-        arts.map(a => makeHL(a, slot)).join('') +
+        arts.map(a => makeHL(a, slot, a.srcId === titleSrcId)).join('') +
         '</div>';
     };
 
