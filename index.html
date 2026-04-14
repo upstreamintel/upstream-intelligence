@@ -378,6 +378,56 @@
   .summary-panel li { margin-bottom: 4px; }
   .summary-panel .summary-error { color: #C0392B; font-style: italic; }
 
+  /* ── Framing Analysis button (cluster cards) ── */
+  .framing-btn {
+    flex-shrink: 0;
+    font-size: 10px; font-weight: 500;
+    font-family: inherit;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+  .framing-btn:hover { background: var(--accent); color: #fff; }
+  .framing-btn.loading { opacity: 0.5; pointer-events: none; }
+  .framing-btn.active { background: var(--accent); color: #fff; }
+
+  /* ── Framing analysis panel (expands below cluster-body) ── */
+  .framing-panel {
+    display: none;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg);
+    padding: 10px 14px 12px;
+  }
+  .framing-panel.visible { display: block; }
+  .framing-panel-heading {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .framing-cols {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .framing-col-head {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 4px;
+  }
+  .framing-col-head.lbl-l { color: #2C4A7C; }
+  .framing-col-head.lbl-c { color: #6B5A2C; }
+  .framing-col-head.lbl-r { color: #5C2C2C; }
+  .framing-col-text {
+    font-size: 11px; color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .framing-error { font-size: 11px; color: #C0392B; font-style: italic; }
+
   .state-msg {
     padding: 28px 16px;
     font-size: 13px;
@@ -2241,6 +2291,132 @@ function buildSummarizeUrl(url) {
   return url; // GovTrack pages are scraper-friendly; pass all URLs through as-is
 }
 
+// ── Cluster Framing Analysis ──
+// Sends headlines + bias labels from a cluster to Claude via /api/summarize,
+// then renders a 3-column (Left / Center / Right) breakdown in the framing panel.
+async function clusterFramingAnalysis(cardId, btn) {
+  const panelEl = document.getElementById('framing-' + cardId);
+  const colsEl  = document.getElementById('framing-cols-' + cardId);
+  if (!panelEl || !colsEl) return;
+
+  // Toggle off if already visible
+  if (panelEl.classList.contains('visible')) {
+    panelEl.classList.remove('visible');
+    btn.classList.remove('active');
+    btn.textContent = '⚖ Framing';
+    return;
+  }
+
+  // ── Gather headlines from the rendered card ──
+  const card = document.getElementById(cardId);
+  const topic = card.querySelector('.cluster-topic')?.textContent?.trim() || '';
+
+  // Pull left / center / right headlines from existing DOM sections
+  function getHeadlines(slotClass) {
+    return Array.from(card.querySelectorAll('.cluster-hl.hl-' + slotClass))
+      .map(el => {
+        const src = el.querySelector('.cluster-hl-src')?.textContent?.replace(/^[\d]+[hmd] · /, '').trim() || '';
+        const title = el.textContent.replace(el.querySelector('.cluster-hl-src')?.textContent || '', '').trim();
+        return src ? '"' + title + '" (' + src + ')' : '"' + title + '"';
+      });
+  }
+
+  const leftHLs   = getHeadlines('l');
+  const centerHLs = getHeadlines('c');
+  const rightHLs  = getHeadlines('r');
+
+  // Build cacheKey from topic string
+  const cacheKey = 'framing_' + Array.from(topic).reduce((h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0, 0).toString(36) + '_' + topic.length;
+
+  // ── Check cache ──
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const { text, ts } = JSON.parse(cached);
+      if (Date.now() - ts < SUMMARIZE_TTL) {
+        renderFramingAnalysis(colsEl, panelEl, btn, text, leftHLs, centerHLs, rightHLs);
+        return;
+      }
+      localStorage.removeItem(cacheKey);
+    }
+  } catch(e) {}
+
+  // ── Build prompt ──
+  const sections = [];
+  if (leftHLs.length)   sections.push('LEFT-LEANING SOURCES:\n' + leftHLs.join('\n'));
+  if (centerHLs.length) sections.push('CENTER SOURCES:\n' + centerHLs.join('\n'));
+  if (rightHLs.length)  sections.push('RIGHT-LEANING SOURCES:\n' + rightHLs.join('\n'));
+
+  const prompt = `You are an analyst for an upstream oil & gas professional who monitors geopolitical and energy news. 
+The following headlines all cover the same story: "${topic}"
+
+${sections.join('\n\n')}
+
+For each political column that has headlines (Left, Center, Right), write 1-2 tight sentences on how that side frames this story. Focus on what they emphasize or omit. No preamble, no hedging — analyst-level brevity. 
+Respond ONLY with a JSON object in this exact format (omit any column with no headlines):
+{"left":"...","center":"...","right":"..."}`;
+
+  btn.textContent = '⏳ Analyzing…';
+  btn.classList.add('loading');
+
+  try {
+    const res = await fetch(
+      `${VERCEL_BASE}/api/summarize?url=inline&prompt=${encodeURIComponent(prompt)}`,
+      { signal: AbortSignal.timeout(30000) }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Cache result
+    try { localStorage.setItem(cacheKey, JSON.stringify({ text: data.summary, ts: Date.now() })); } catch(e) {}
+
+    renderFramingAnalysis(colsEl, panelEl, btn, data.summary, leftHLs, centerHLs, rightHLs);
+  } catch(err) {
+    colsEl.innerHTML = '<span class="framing-error">Could not load analysis: ' + err.message + '</span>';
+    panelEl.classList.add('visible');
+    btn.textContent = '⚖ Framing';
+    btn.classList.remove('loading', 'active');
+  }
+}
+
+function renderFramingAnalysis(colsEl, panelEl, btn, rawText, leftHLs, centerHLs, rightHLs) {
+  // Parse JSON response; strip markdown fences if present
+  let parsed = {};
+  try {
+    const clean = rawText.replace(/```json|```/g, '').trim();
+    parsed = JSON.parse(clean);
+  } catch(e) {
+    colsEl.innerHTML = '<span class="framing-error">Could not parse analysis.</span>';
+    panelEl.classList.add('visible');
+    btn.textContent = '▲ Hide';
+    btn.classList.remove('loading');
+    btn.classList.add('active');
+    return;
+  }
+
+  const colCount = [parsed.left, parsed.center, parsed.right].filter(Boolean).length;
+  colsEl.className = 'framing-cols cols-' + colCount;
+
+  let html = '';
+  if (parsed.left && leftHLs.length) {
+    html += '<div><div class="framing-col-head lbl-l">← Left</div><div class="framing-col-text">' + parsed.left + '</div></div>';
+  }
+  if (parsed.center && centerHLs.length) {
+    html += '<div><div class="framing-col-head lbl-c">Center</div><div class="framing-col-text">' + parsed.center + '</div></div>';
+  }
+  if (parsed.right && rightHLs.length) {
+    html += '<div><div class="framing-col-head lbl-r">Right →</div><div class="framing-col-text">' + parsed.right + '</div></div>';
+  }
+  if (!html) html = '<span class="framing-error">No analysis available.</span>';
+
+  colsEl.innerHTML = html;
+  panelEl.classList.add('visible');
+  btn.textContent = '▲ Hide';
+  btn.classList.remove('loading');
+  btn.classList.add('active');
+}
+
 function renderSummary(targetEl, btn, text) {
   // Convert markdown-style bullets to <ul><li> if present, else wrap in <p>
   let html = '';
@@ -3763,6 +3939,9 @@ function renderClusters() {
       biasSection(rightArts,  'r'),
     ].join('');
 
+    const framingPanelId = 'framing-' + cardId;
+    const framingBtnId   = 'framing-btn-' + cardId;
+
     return '<div class="cluster-card" id="' + cardId + '">' +
       '<div class="cluster-header">' +
         '<div class="cluster-header-left">' +
@@ -3773,6 +3952,14 @@ function renderClusters() {
             '<div class="cluster-source-pills">' + pillsHTML + '</div>' +
           '</div>' +
         '</div>' +
+        '<button class="framing-btn" id="' + framingBtnId + '" ' +
+          'onclick="clusterFramingAnalysis(\'' + cardId + '\', this)">' +
+          '⚖ Framing' +
+        '</button>' +
+      '</div>' +
+      '<div class="framing-panel" id="' + framingPanelId + '">' +
+        '<div class="framing-panel-heading">⚖ Framing Analysis</div>' +
+        '<div class="framing-cols" id="framing-cols-' + cardId + '"></div>' +
       '</div>' +
       '<div class="cluster-body">' +
         sectionsHTML +
