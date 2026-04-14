@@ -3523,7 +3523,14 @@ function buildClusters() {
     return latestB - latestA;
   });
 
-  return mergedClusters.slice(0, 15);
+  // Freshness filter: require at least one article within 48 hours to qualify as trending
+  const FRESH_MS = 48 * 60 * 60 * 1000;
+  const now = Date.now();
+  const freshClusters = mergedClusters.filter(group =>
+    group.some(a => a.pubDate && (now - new Date(a.pubDate).getTime()) <= FRESH_MS)
+  );
+
+  return freshClusters.slice(0, 15);
 }
 
 // Select cluster title: recency-first, with center-bias preference only among same-day articles
