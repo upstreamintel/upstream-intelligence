@@ -3559,6 +3559,9 @@ function clusterTopic(group) {
   for (const prefix of STRIP_PREFIXES) {
     title = title.replace(prefix, '');
   }
+  // Strip broadcast/show-name prefixes ending in colon, e.g. "CNBC Daily Open: ...", "SCOTT HORTON: ..."
+  // Matches up to 40 chars of word characters before a colon+space; leaves mid-sentence colons alone.
+  title = title.replace(/^[A-Za-z][A-Za-z0-9 .'-]{0,38}:\s+/, '');
   // Strip trailing pipe/spaced-dash attributions (e.g. "Oil rises | Reuters" or "Gaza update - BBC")
   // Requires whitespace on both sides to avoid cutting hyphenated words like U.S.-Iran
   title = title.replace(/\s+[|\u2013\u2014]\s+[^|\u2013\u2014]{1,40}$/, '').replace(/\s+-\s+[^-]{1,40}$/, '');
