@@ -2341,6 +2341,22 @@ async function clusterFramingAnalysis(cardId, btn) {
     }
   } catch(e) {}
 
+  // ── Guard: need at least 2 bias columns for contrast ──
+  const filledCols = [leftHLs.length, centerHLs.length, rightHLs.length].filter(Boolean).length;
+  if (filledCols < 2) {
+    const onlySlot = leftHLs.length ? 'l' : rightHLs.length ? 'r' : 'c';
+    const label = onlySlot === 'l' ? '← Left' : onlySlot === 'r' ? 'Right →' : 'Center';
+    colsEl.innerHTML = '<div><div class="framing-col-head lbl-' + onlySlot + '">' + label + '</div>' +
+      '<div class="framing-col-text" style="color:var(--text-muted);font-style:italic;">' +
+      'Only one perspective is covering this story — no contrast available.</div></div>';
+    panelEl.classList.add('visible');
+    btn.textContent = '▲ Hide';
+    btn.classList.remove('loading');
+    btn.classList.add('active');
+    return;
+  }
+
+
   // ── Build prompt ──
   const sections = [];
   if (leftHLs.length)   sections.push('LEFT-LEANING SOURCES:\n' + leftHLs.join('\n'));
@@ -2353,7 +2369,7 @@ The following headlines all cover the same story: "${topic}"
 ${sections.join('\n\n')}
 
 For each political column that has headlines (Left, Center, Right), write 1-2 tight sentences on how that side frames this story. Focus on what they emphasize or omit. No preamble, no hedging — analyst-level brevity. 
-Respond ONLY with a JSON object in this exact format (omit any column with no headlines):
+You MUST respond ONLY with a valid JSON object and nothing else — no explanation, no markdown, no code fences. Use exactly this format (omit keys for columns with no headlines):\n
 {"left":"...","center":"...","right":"..."}`;
 
   btn.textContent = '⏳ Analyzing…';
