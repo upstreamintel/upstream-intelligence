@@ -400,9 +400,10 @@
   /* ── Framing analysis panel (expands below cluster-body) ── */
   .framing-panel {
     display: none;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg);
-    padding: 10px 14px 12px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--accent-light);
+    padding: 10px 8px 12px;
+    margin: -10px -14px 10px;
   }
   .framing-panel.visible { display: block; }
   .framing-panel-heading {
@@ -641,10 +642,12 @@
     border-top: 3px solid var(--accent);
     border-radius: 10px;
     min-width: 280px; max-width: 320px;
+    max-height: 560px;
     flex-shrink: 0;
     scroll-snap-align: start;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
   @media (max-width: 600px) {
     .cluster-card { min-width: 260px; max-width: 280px; }
@@ -3973,11 +3976,11 @@ function renderClusters() {
           '⚖ Framing' +
         '</button>' +
       '</div>' +
-      '<div class="framing-panel" id="' + framingPanelId + '">' +
-        '<div class="framing-panel-heading">⚖ Framing Analysis</div>' +
-        '<div class="framing-cols" id="framing-cols-' + cardId + '"></div>' +
-      '</div>' +
       '<div class="cluster-body">' +
+        '<div class="framing-panel" id="' + framingPanelId + '">' +
+          '<div class="framing-panel-heading">⚖ Framing Analysis</div>' +
+          '<div class="framing-cols" id="framing-cols-' + cardId + '"></div>' +
+        '</div>' +
         sectionsHTML +
       '</div>' +
     '</div>';
