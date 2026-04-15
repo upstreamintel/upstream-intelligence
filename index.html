@@ -3625,6 +3625,14 @@ const STOP_WORDS = new Set([
   'says','say','said','warns','warn','urged','urges','urge','calls','call',
   'told','tell','shows','show','reports','report','claims','claim','according',
   'announces','announced',
+  // Generic crime/legal terms — cluster unrelated stories around shared vocab
+  'sentenced','sentence','prison','arrested','arrest','charged','charge','charges',
+  'killed','dead','death','wounded','injured','shooting','shot','attack','attacked',
+  'smuggling','smuggled','drugs','cocaine','fentanyl','months','years','jail',
+  'court','trial','verdict','guilty','convicted','conviction','police','officers',
+  // Generic conflict/numbers/roles — too common to carry topical signal
+  'casualties','troops','soldiers','forces','military','official','officials',
+  'government','minister','president','secretary','national','federal',
 ]);
 
 function tokenize(title) {
@@ -3678,7 +3686,7 @@ function buildClusters() {
     used.add(i);
     for (let j = i + 1; j < tokenized.length; j++) {
       if (used.has(j)) continue;
-      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.18);
+      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.20);
       if (similar) {
         const alreadyHasSrc = group.some(g => g.srcId === tokenized[j].srcId);
         if (!alreadyHasSrc) { group.push(tokenized[j]); used.add(j); }
