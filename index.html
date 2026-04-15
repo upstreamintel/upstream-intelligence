@@ -3710,20 +3710,21 @@ function buildClusters() {
     mergedClusters.push(groupA);
   }
 
-  // Sort by source count desc, then by most recent article
-  mergedClusters.sort((a, b) => {
-    if (b.length !== a.length) return b.length - a.length;
-    const latestA = Math.max(...a.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
-    const latestB = Math.max(...b.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
-    return latestB - latestA;
-  });
-
   // Freshness filter: trim each cluster to articles within 48 hours, then require 3+ remain
+  // Must run BEFORE sort so source counts reflect trimmed groups
   const FRESH_MS = 48 * 60 * 60 * 1000;
   const now = Date.now();
   const freshClusters = mergedClusters
     .map(group => group.filter(a => a.pubDate && (now - new Date(a.pubDate).getTime()) <= FRESH_MS))
     .filter(group => group.length >= 3);
+
+  // Sort by source count desc, then by most recent article — runs after freshness trim
+  freshClusters.sort((a, b) => {
+    if (b.length !== a.length) return b.length - a.length;
+    const latestA = Math.max(...a.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
+    const latestB = Math.max(...b.map(x => x.pubDate ? new Date(x.pubDate).getTime() : 0));
+    return latestB - latestA;
+  });
 
   return freshClusters.slice(0, 15);
 }
