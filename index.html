@@ -3749,29 +3749,31 @@ function clusterTopic(group) {
     /^WATCH[:\s]+/i, /^LIVE[:\s]+/i, /^NEW[:\s]+/i,
   ];
 
-  const withDate = group.filter(a => a.pubDate);
-  const byRecent = withDate.length
-    ? [...withDate].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    : group;
+  // Step 1: compute the cluster's token centroid — top-5 tokens by frequency across all articles
+  const centroid = topTokens(group, 5);
 
-  let chosen;
-  if (byRecent.length) {
-    // Find the most recent article's timestamp
-    const newestMs = new Date(byRecent[0].pubDate).getTime();
-    // Consider any article within 24 hours of the newest as "same-day"
-    const WINDOW_MS = 24 * 60 * 60 * 1000;
-    const recentPool = byRecent.filter(a => newestMs - new Date(a.pubDate).getTime() <= WINDOW_MS);
-    // Within that recent pool, prefer the article whose bias is closest to center (rank 3).
-    // Ties broken by recency (recentPool is already sorted newest-first).
-    // Falls back to most recent article overall if recentPool is empty.
-    chosen = recentPool.reduce((best, a) => {
-      const aDist = Math.abs(biasRank(a.bias) - 3);
-      const bDist = Math.abs(biasRank(best.bias) - 3);
-      return aDist < bDist ? a : best;
-    }, recentPool[0]) || byRecent[0];
-  } else {
-    chosen = group[0];
-  }
+  // Step 2: score each article by how many of its tokens match the centroid
+  // Tiebreakers (in order): center-bias proximity, then recency
+  const scored = group.map(a => {
+    const tokens = a.tokens instanceof Set ? a.tokens : new Set(tokenize(a.title));
+    let intersect = 0;
+    centroid.forEach(t => { if (tokens.has(t)) intersect++; });
+    return {
+      article: a,
+      score: intersect,
+      biasDist: Math.abs(biasRank(a.bias) - 3),
+      pubMs: a.pubDate ? new Date(a.pubDate).getTime() : 0,
+    };
+  });
+
+  // Step 3: sort by score DESC → biasDist ASC → pubMs DESC, pick the winner
+  scored.sort((a, b) =>
+    b.score - a.score ||
+    a.biasDist - b.biasDist ||
+    b.pubMs - a.pubMs
+  );
+
+  const chosen = scored[0]?.article || group[0];
 
   let title = chosen.title;
 
