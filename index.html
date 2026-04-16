@@ -3650,13 +3650,50 @@ function jaccard(setA, setB) {
   return union.size === 0 ? 0 : intersection.size / union.size;
 }
 
-// Returns the top N most frequent tokens across a cluster group
+// Returns the top N most frequent tokens across a cluster group (raw TF, no IDF weighting)
+// Used only during Phase 1 before corpus IDF is available.
 function topTokens(group, n = 5) {
   const freq = {};
   group.forEach(a => { a.tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; }); });
   return new Set(
     Object.entries(freq)
       .filter(([, c]) => c >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, n)
+      .map(([w]) => w)
+  );
+}
+
+// Compute IDF scores across the full cluster corpus.
+// IDF(t) = log((1 + N) / (1 + df(t))) + 1   (smooth IDF, standard sklearn variant)
+// A token appearing in every cluster gets IDF ≈ 1.0; rare tokens get much higher scores.
+// Call this ONCE after Phase 1 clustering, pass the result into tfidfTopTokens.
+function computeCorpusIDF(clusters) {
+  const N = clusters.length;
+  const df = {};  // document frequency: how many clusters contain each token
+  clusters.forEach(group => {
+    const clusterTokens = new Set();
+    group.forEach(a => { a.tokens.forEach(t => clusterTokens.add(t)); });
+    clusterTokens.forEach(t => { df[t] = (df[t] || 0) + 1; });
+  });
+  const idf = {};
+  Object.entries(df).forEach(([t, d]) => {
+    idf[t] = Math.log((1 + N) / (1 + d)) + 1;
+  });
+  return idf;
+}
+
+// Returns the top N tokens for a group, ranked by TF-IDF score.
+// TF = count of token across all articles in the group.
+// Score = TF * IDF(token). Falls back to raw TF if idf is null/missing.
+// Minimum TF of 2 still required to avoid singleton noise.
+function tfidfTopTokens(group, idf, n = 5) {
+  const freq = {};
+  group.forEach(a => { a.tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; }); });
+  return new Set(
+    Object.entries(freq)
+      .filter(([, c]) => c >= 2)
+      .map(([t, c]) => [t, c * (idf?.[t] ?? 1)])
       .sort((a, b) => b[1] - a[1])
       .slice(0, n)
       .map(([w]) => w)
@@ -3697,17 +3734,23 @@ function buildClusters() {
     if (group.length >= 3) clusters.push(group);
   }
 
-  // Phase 2: merge clusters whose top-5 tokens overlap by 45%+ (Jaccard >= 0.45)
-  // This collapses near-duplicate cards that slipped through phase 1
+  // Phase 2: compute corpus IDF from Phase 1 clusters, then merge clusters whose
+  // top-5 TF-IDF tokens overlap by 45%+ (Jaccard >= 0.45).
+  // Using TF-IDF here fixes the Powell/Fed duplicate problem: raw frequency gave
+  // "powell" and "fed" equal weight, so their token sets didn't overlap in Jaccard.
+  // TF-IDF downweights tokens common across many clusters and upweights the
+  // distinctive terms — two clusters about the same story (even told with different
+  // proper nouns) now surface the same high-IDF terms and merge correctly.
+  const idf = computeCorpusIDF(clusters);
   const merged = new Set();
   const mergedClusters = [];
   for (let i = 0; i < clusters.length; i++) {
     if (merged.has(i)) continue;
     const groupA = clusters[i];
-    const tokA = topTokens(groupA);
+    const tokA = tfidfTopTokens(groupA, idf);
     for (let j = i + 1; j < clusters.length; j++) {
       if (merged.has(j)) continue;
-      const tokB = topTokens(clusters[j]);
+      const tokB = tfidfTopTokens(clusters[j], idf);
       const overlap = jaccard(tokA, tokB);
       if (overlap >= 0.45) {
         // Merge B into A, deduplicating by source
@@ -3739,7 +3782,10 @@ function buildClusters() {
   return freshClusters.slice(0, 15);
 }
 
-// Select cluster title: recency-first, with center-bias preference only among same-day articles
+// Select cluster title: uses TF-IDF centroid to find the most representative article,
+// then applies center-bias preference and recency as tiebreakers.
+// Within-cluster IDF: each article is a "document"; tokens appearing in many articles
+// get downweighted, so the centroid reflects what's distinctive — not just ubiquitous.
 function clusterTopic(group) {
   const STRIP_PREFIXES = [
     /^report[:\s]+/i, /^breaking[:\s]+/i, /^exclusive[:\s]+/i,
@@ -3749,10 +3795,24 @@ function clusterTopic(group) {
     /^WATCH[:\s]+/i, /^LIVE[:\s]+/i, /^NEW[:\s]+/i,
   ];
 
-  // Step 1: compute the cluster's token centroid — top-5 tokens by frequency across all articles
-  const centroid = topTokens(group, 5);
+  // Step 1: compute within-cluster IDF — treat each article as a document
+  // This downweights tokens that appear in every article (too generic to be representative)
+  // and upweights tokens that appear in only a few (the distinctive signal of this story)
+  const N = group.length;
+  const df = {};
+  group.forEach(a => {
+    const toks = a.tokens instanceof Set ? a.tokens : new Set(tokenize(a.title));
+    toks.forEach(t => { df[t] = (df[t] || 0) + 1; });
+  });
+  const localIdf = {};
+  Object.entries(df).forEach(([t, d]) => {
+    localIdf[t] = Math.log((1 + N) / (1 + d)) + 1;
+  });
 
-  // Step 2: score each article by how many of its tokens match the centroid
+  // Step 2: compute cluster centroid using TF-IDF weighted token scores
+  const centroid = tfidfTopTokens(group, localIdf, 5);
+
+  // Step 3: score each article by how many of its tokens match the TF-IDF centroid
   // Tiebreakers (in order): center-bias proximity, then recency
   const scored = group.map(a => {
     const tokens = a.tokens instanceof Set ? a.tokens : new Set(tokenize(a.title));
@@ -3766,7 +3826,7 @@ function clusterTopic(group) {
     };
   });
 
-  // Step 3: sort by score DESC → biasDist ASC → pubMs DESC, pick the winner
+  // Step 4: sort by score DESC → biasDist ASC → pubMs DESC, pick the winner
   scored.sort((a, b) =>
     b.score - a.score ||
     a.biasDist - b.biasDist ||
