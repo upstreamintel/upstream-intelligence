@@ -3765,7 +3765,7 @@ function buildClusters() {
       if (merged.has(j)) continue;
       const tokB = tfidfTopTokens(clusters[j], idf);
       const overlap = jaccard(tokA, tokB);
-      if (overlap >= 0.45) {
+      if (overlap >= 0.40) {
         clusters[j].forEach(art => {
           if (!groupA.some(a => a.srcId === art.srcId)) groupA.push(art);
         });
