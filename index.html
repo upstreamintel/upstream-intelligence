@@ -3613,28 +3613,22 @@ document.addEventListener('click', e => {
 //   - Cluster title uses the most-recent headline text rather than word-frequency
 //     labels, which is more readable and specific
 
+// ── TF-IDF Clustering ──
+// Stop words trimmed to pure grammar + attribution verbs only.
+// IDF math suppresses omnipresent terms (iran, trump, war) automatically —
+// no need to manually blacklist topical words.
 const STOP_WORDS = new Set([
-  // Articles, conjunctions, prepositions, pronouns — pure grammar words
+  // Articles, conjunctions, prepositions, pronouns
   'the','a','an','and','or','but','in','on','at','to','for','of','with','by',
   'from','as','is','was','are','were','be','been','has','have','had','will',
   'would','could','should','may','might','that','this','these','those','its',
   'it','his','her','their','our','over','into','about','up','out','than','so',
   'not','no','us','un','eu','also','just','even','still','again','here','there',
   'within','ahead','before','since','while','between','amid',
-  // News attribution verbs — appear in almost every headline, zero topical signal
+  // News attribution verbs — zero topical signal, appear in almost every headline
   'says','say','said','warns','warn','urged','urges','urge','calls','call',
   'told','tell','shows','show','reports','report','claims','claim','according',
   'announces','announced',
-  // Omnipresent proper nouns — appear in too many headlines to carry topical signal
-  'trump','biden','harris','obama',
-  // Generic crime/legal terms — cluster unrelated stories around shared vocab
-  'sentenced','sentence','prison','arrested','arrest','charged','charge','charges',
-  'killed','dead','death','wounded','injured','shooting','shot','attack','attacked',
-  'smuggling','smuggled','drugs','cocaine','fentanyl','months','years','jail',
-  'court','trial','verdict','guilty','convicted','conviction','police','officers',
-  // Generic conflict/numbers/roles — too common to carry topical signal
-  'casualties','troops','soldiers','forces','military','official','officials',
-  'government','minister','president','secretary','national','federal',
 ]);
 
 function tokenize(title) {
@@ -3644,37 +3638,17 @@ function tokenize(title) {
     .filter(w => w.length > 3 && !STOP_WORDS.has(w));
 }
 
-function jaccard(setA, setB) {
-  const intersection = new Set([...setA].filter(x => setB.has(x)));
-  const union = new Set([...setA, ...setB]);
-  return union.size === 0 ? 0 : intersection.size / union.size;
-}
-
-// Returns the top N most frequent tokens across a cluster group (raw TF, no IDF weighting)
-// Used only during Phase 1 before corpus IDF is available.
-function topTokens(group, n = 5) {
-  const freq = {};
-  group.forEach(a => { a.tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; }); });
-  return new Set(
-    Object.entries(freq)
-      .filter(([, c]) => c >= 2)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, n)
-      .map(([w]) => w)
-  );
-}
-
-// Compute IDF scores across the full cluster corpus.
-// IDF(t) = log((1 + N) / (1 + df(t))) + 1   (smooth IDF, standard sklearn variant)
-// A token appearing in every cluster gets IDF ≈ 1.0; rare tokens get much higher scores.
-// Call this ONCE after Phase 1 clustering, pass the result into tfidfTopTokens.
-function computeCorpusIDF(clusters) {
-  const N = clusters.length;
-  const df = {};  // document frequency: how many clusters contain each token
-  clusters.forEach(group => {
-    const clusterTokens = new Set();
-    group.forEach(a => { a.tokens.forEach(t => clusterTokens.add(t)); });
-    clusterTokens.forEach(t => { df[t] = (df[t] || 0) + 1; });
+// Compute IDF scores across all article titles (the full corpus).
+// IDF(t) = log((1 + N) / (1 + df(t))) + 1  — smooth variant, same as sklearn default.
+// A token in every article scores ~1.0; a token in one article scores much higher.
+// Called once per buildClusters() pass, before any similarity computation.
+function computeIDF(articles) {
+  const N = articles.length;
+  const df = {};
+  articles.forEach(a => {
+    // Count each token once per article (document frequency, not term frequency)
+    const seen = new Set(a.tokens);
+    seen.forEach(t => { df[t] = (df[t] || 0) + 1; });
   });
   const idf = {};
   Object.entries(df).forEach(([t, d]) => {
@@ -3683,21 +3657,52 @@ function computeCorpusIDF(clusters) {
   return idf;
 }
 
-// Returns the top N tokens for a group, ranked by TF-IDF score.
-// TF = count of token across all articles in the group.
-// Score = TF * IDF(token). Falls back to raw TF if idf is null/missing.
-// Minimum TF of 2 still required to avoid singleton noise.
+// Build a TF-IDF weighted vector for a single article.
+// For headlines, TF is binary (word present or not) — IDF does the heavy lifting.
+// Returns a plain object: { token: tfidfScore, ... }
+function buildVector(article, idf) {
+  const vec = {};
+  article.tokens.forEach(t => {
+    vec[t] = (idf[t] || 1);  // TF=1 for headlines; fallback weight 1 if token missing from IDF
+  });
+  return vec;
+}
+
+// Cosine similarity between two TF-IDF vectors.
+// Measures the angle between vectors — robust to headline length differences.
+// Returns 0.0 (orthogonal/unrelated) to 1.0 (identical).
+function cosineSim(vecA, vecB) {
+  let dot = 0, magA = 0, magB = 0;
+  Object.entries(vecA).forEach(([t, w]) => {
+    dot += w * (vecB[t] || 0);
+    magA += w * w;
+  });
+  Object.values(vecB).forEach(w => { magB += w * w; });
+  if (magA === 0 || magB === 0) return 0;
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+// Returns the top N tokens for a cluster group ranked by TF-IDF score.
+// TF = count across all articles in the group; Score = TF * IDF.
+// Used for Phase 2 merge comparison and clusterTopic centroid.
 function tfidfTopTokens(group, idf, n = 5) {
   const freq = {};
   group.forEach(a => { a.tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; }); });
   return new Set(
     Object.entries(freq)
       .filter(([, c]) => c >= 2)
-      .map(([t, c]) => [t, c * (idf?.[t] ?? 1)])
+      .map(([t, c]) => [t, c * (idf[t] || 1)])
       .sort((a, b) => b[1] - a[1])
       .slice(0, n)
       .map(([w]) => w)
   );
+}
+
+// Jaccard on token sets — retained for Phase 2 cluster-level merge comparison.
+function jaccard(setA, setB) {
+  const intersection = new Set([...setA].filter(x => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+  return union.size === 0 ? 0 : intersection.size / union.size;
 }
 
 function buildClusters() {
@@ -3713,35 +3718,43 @@ function buildClusters() {
   });
   if (allArticles.length === 0) return [];
 
-  const tokenized = allArticles.map(a => ({ ...a, tokens: new Set(tokenize(a.title)) }));
+  // Tokenize all articles, then compute corpus-wide IDF in one pass.
+  // IDF runs on the full article corpus so common terms (iran, trump, war)
+  // get naturally suppressed without manual stop word maintenance.
+  const tokenized = allArticles.map(a => ({ ...a, tokens: tokenize(a.title) }));
+  const idf = computeIDF(tokenized);
+
+  // Build TF-IDF vector for every article — replaces the raw token Set used before.
+  const vectorized = tokenized.map(a => ({ ...a, vec: buildVector(a, idf) }));
+
   const used = new Set();
   const clusters = [];
 
-  // Phase 1: initial greedy clustering (Jaccard >= 0.23 per-article similarity)
-  // Raised from 0.20 to reduce false clusters driven by shared proper nouns alone
-  for (let i = 0; i < tokenized.length; i++) {
+  // Phase 1: greedy clustering using cosine similarity on TF-IDF vectors.
+  // Cosine threshold 0.15 — lower than the old Jaccard 0.20 because cosine on
+  // weighted vectors is more discriminating: "hormuz blockade" vs "iran sanctions"
+  // will score near zero even though both mention iran, because iran's IDF weight
+  // is low and the distinctive tokens don't overlap.
+  const COSINE_THRESHOLD = 0.15;
+  for (let i = 0; i < vectorized.length; i++) {
     if (used.has(i)) continue;
-    const group = [tokenized[i]];
+    const group = [vectorized[i]];
     used.add(i);
-    for (let j = i + 1; j < tokenized.length; j++) {
+    for (let j = i + 1; j < vectorized.length; j++) {
       if (used.has(j)) continue;
-      const similar = group.some(g => jaccard(g.tokens, tokenized[j].tokens) >= 0.20);
+      const similar = group.some(g => cosineSim(g.vec, vectorized[j].vec) >= COSINE_THRESHOLD);
       if (similar) {
-        const alreadyHasSrc = group.some(g => g.srcId === tokenized[j].srcId);
-        if (!alreadyHasSrc) { group.push(tokenized[j]); used.add(j); }
+        const alreadyHasSrc = group.some(g => g.srcId === vectorized[j].srcId);
+        if (!alreadyHasSrc) { group.push(vectorized[j]); used.add(j); }
       }
     }
     if (group.length >= 3) clusters.push(group);
   }
 
-  // Phase 2: compute corpus IDF from Phase 1 clusters, then merge clusters whose
-  // top-5 TF-IDF tokens overlap by 45%+ (Jaccard >= 0.45).
-  // Using TF-IDF here fixes the Powell/Fed duplicate problem: raw frequency gave
-  // "powell" and "fed" equal weight, so their token sets didn't overlap in Jaccard.
-  // TF-IDF downweights tokens common across many clusters and upweights the
-  // distinctive terms — two clusters about the same story (even told with different
-  // proper nouns) now surface the same high-IDF terms and merge correctly.
-  const idf = computeCorpusIDF(clusters);
+  // Phase 2: merge clusters whose top-5 TF-IDF tokens overlap by 45%+ (Jaccard >= 0.45).
+  // Using TF-IDF weighted tokens here fixes the Powell/Fed problem: raw frequency
+  // gave "powell" and "fed" equal weight so their sets didn't overlap. TF-IDF
+  // surfaces the shared high-IDF terms (interest rates, monetary policy) instead.
   const merged = new Set();
   const mergedClusters = [];
   for (let i = 0; i < clusters.length; i++) {
@@ -3753,7 +3766,6 @@ function buildClusters() {
       const tokB = tfidfTopTokens(clusters[j], idf);
       const overlap = jaccard(tokA, tokB);
       if (overlap >= 0.45) {
-        // Merge B into A, deduplicating by source
         clusters[j].forEach(art => {
           if (!groupA.some(a => a.srcId === art.srcId)) groupA.push(art);
         });
@@ -3782,42 +3794,32 @@ function buildClusters() {
   return freshClusters.slice(0, 15);
 }
 
-// Select cluster title: uses TF-IDF centroid to find the most representative article,
-// then applies center-bias preference and recency as tiebreakers.
-// Within-cluster IDF: each article is a "document"; tokens appearing in many articles
-// get downweighted, so the centroid reflects what's distinctive — not just ubiquitous.
+// Select cluster title using TF-IDF centroid.
+// Computes within-group IDF (each article = document) so tokens appearing in
+// every headline get downweighted, surfacing the truly distinctive terms.
+// Tiebreakers: center-bias proximity, then recency.
 function clusterTopic(group) {
   const STRIP_PREFIXES = [
     /^report[:\s]+/i, /^breaking[:\s]+/i, /^exclusive[:\s]+/i,
     /^watch[:\s]+/i, /^analysis[:\s]+/i, /^opinion[:\s]+/i,
     /^update[:\s]+/i, /^developing[:\s]+/i,
-    // YouTube-style titles
     /^WATCH[:\s]+/i, /^LIVE[:\s]+/i, /^NEW[:\s]+/i,
   ];
 
-  // Step 1: compute within-cluster IDF — treat each article as a document
-  // This downweights tokens that appear in every article (too generic to be representative)
-  // and upweights tokens that appear in only a few (the distinctive signal of this story)
-  const N = group.length;
-  const df = {};
-  group.forEach(a => {
-    const toks = a.tokens instanceof Set ? a.tokens : new Set(tokenize(a.title));
-    toks.forEach(t => { df[t] = (df[t] || 0) + 1; });
-  });
-  const localIdf = {};
-  Object.entries(df).forEach(([t, d]) => {
-    localIdf[t] = Math.log((1 + N) / (1 + d)) + 1;
-  });
+  // Build within-group IDF — treats each article as a document
+  const localArticles = group.map(a => ({
+    tokens: Array.isArray(a.tokens) ? a.tokens : (a.tokens instanceof Set ? [...a.tokens] : tokenize(a.title))
+  }));
+  const localIdf = computeIDF(localArticles);
 
-  // Step 2: compute cluster centroid using TF-IDF weighted token scores
+  // Centroid = top-5 TF-IDF tokens across the group
   const centroid = tfidfTopTokens(group, localIdf, 5);
 
-  // Step 3: score each article by how many of its tokens match the TF-IDF centroid
-  // Tiebreakers (in order): center-bias proximity, then recency
+  // Score each article by centroid overlap, break ties by bias proximity then recency
   const scored = group.map(a => {
-    const tokens = a.tokens instanceof Set ? a.tokens : new Set(tokenize(a.title));
+    const toks = new Set(Array.isArray(a.tokens) ? a.tokens : (a.tokens instanceof Set ? [...a.tokens] : tokenize(a.title)));
     let intersect = 0;
-    centroid.forEach(t => { if (tokens.has(t)) intersect++; });
+    centroid.forEach(t => { if (toks.has(t)) intersect++; });
     return {
       article: a,
       score: intersect,
@@ -3826,7 +3828,6 @@ function clusterTopic(group) {
     };
   });
 
-  // Step 4: sort by score DESC → biasDist ASC → pubMs DESC, pick the winner
   scored.sort((a, b) =>
     b.score - a.score ||
     a.biasDist - b.biasDist ||
@@ -3834,23 +3835,14 @@ function clusterTopic(group) {
   );
 
   const chosen = scored[0]?.article || group[0];
-
   let title = chosen.title;
 
-  // Strip common prefixes and YouTube cruft
-  for (const prefix of STRIP_PREFIXES) {
-    title = title.replace(prefix, '');
-  }
-  // Strip broadcast/show-name prefixes ending in colon, e.g. "CNBC Daily Open: ...", "SCOTT HORTON: ..."
-  // Matches up to 40 chars of word characters before a colon+space; leaves mid-sentence colons alone.
+  for (const prefix of STRIP_PREFIXES) { title = title.replace(prefix, ''); }
   title = title.replace(/^[A-Za-z][A-Za-z0-9 .'-]{0,38}:\s+/, '');
-  // Strip trailing pipe/spaced-dash attributions (e.g. "Oil rises | Reuters" or "Gaza update - BBC")
-  // Requires whitespace on both sides to avoid cutting hyphenated words like U.S.-Iran
   title = title.replace(/\s+[|\u2013\u2014]\s+[^|\u2013\u2014]{1,40}$/, '').replace(/\s+-\s+[^-]{1,40}$/, '');
   title = title.trim();
   if (title.length > 0) title = title[0].toUpperCase() + title.slice(1);
 
-  // Trim to ~70 chars at a word boundary
   if (title.length <= 70) return { title, srcId: chosen.srcId };
   const trimmed = title.slice(0, 70);
   return { title: trimmed.slice(0, trimmed.lastIndexOf(' ')) + '\u2026', srcId: chosen.srcId };
