@@ -3630,6 +3630,8 @@ const STOP_WORDS = new Set([
   'says','say','said','warns','warn','urged','urges','urge','calls','call',
   'told','tell','shows','show','reports','report','claims','claim','according',
   'announces','announced',
+  // Incident-type words — appear across unrelated violent events, no topical signal
+  'dead','killed','kills','killing','gunman','shooting','shot','wounded','rampage',
 ]);
 
 function tokenize(title) {
