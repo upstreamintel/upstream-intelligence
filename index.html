@@ -1572,8 +1572,8 @@ const SOURCES = [
   },
   {
     id:'env', name:'Enverus', color:'#E87722', site:'https://www.enverus.com',
-    url:'https://www.enverus.com/blog-feed/',
-    fallback:'https://www.enverus.com/feed/',
+    url:'https://news.google.com/rss/search?q=site:enverus.com&hl=en-US&gl=US&ceid=US:en',
+    fallback:'https://news.google.com/rss/search?q=enverus+oil+gas&hl=en-US&gl=US&ceid=US:en',
     bias:'Industry / Data', biasColor:'#E87722',
     group:'energy'
   },
@@ -1630,8 +1630,8 @@ const SOURCES = [
   },
   {
     id:'axios', name:'Axios', color:'#FF4500', site:'https://www.axios.com',
-    url:'https://api.axios.com/feed/',
-    fallback:'https://www.axios.com/feed/',
+    url:'https://news.google.com/rss/search?q=site:axios.com&hl=en-US&gl=US&ceid=US:en',
+    fallback:'https://news.google.com/rss/search?q=axios+news&hl=en-US&gl=US&ceid=US:en',
     bias:'Center', biasColor:'#888780',
     group:'usnews'
   },
@@ -3765,7 +3765,7 @@ function buildClusters() {
       if (merged.has(j)) continue;
       const tokB = tfidfTopTokens(clusters[j], idf);
       const overlap = jaccard(tokA, tokB);
-      if (overlap >= 0.35) {
+      if (overlap >= 0.45) {
         clusters[j].forEach(art => {
           if (!groupA.some(a => a.srcId === art.srcId)) groupA.push(art);
         });
